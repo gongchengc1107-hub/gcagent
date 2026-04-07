@@ -13,9 +13,16 @@ import { homedir } from 'os'
 import { spawn, execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import net from 'net'
-import * as nodePty from 'node-pty'
 import https from 'https'
 import http from 'http'
+
+// node-pty 是 native addon，在 asar 打包环境中可能不存在，延迟加载
+let nodePty: typeof import('node-pty') | null = null
+try {
+  nodePty = await import('node-pty')
+} catch {
+  // asar 环境中 node-pty 不可用，PTY 功能将被禁用
+}
 
 // ─── 本地类型（主进程不依赖渲染层 types）─────────────────────
 
@@ -87,7 +94,8 @@ let serveProcess: ChildProcess | null = null
 let servePort = 4000
 
 /** PTY 实例池，key 为 ptyId */
-const ptyMap = new Map<string, nodePty.IPty>()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ptyMap = new Map<string, any>()
 
 // ─── 工具函数 ──────────────────────────────────────────────
 
@@ -1123,6 +1131,7 @@ function registerIPC(): void {
 
   /** 创建 PTY 实例，启动 codemaker auth login，返回 ptyId */
   ipcMain.handle('pty:create', (_event, cols: number, rows: number): string => {
+    if (!nodePty) throw new Error('node-pty 不可用')
     const bin = getCodemakBin()
     const ptyId = `pty-${randomUUID()}`
 
