@@ -14,6 +14,8 @@ import { spawn, execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import net from 'net'
 import * as nodePty from 'node-pty'
+import https from 'https'
+import http from 'http'
 
 // ─── 本地类型（主进程不依赖渲染层 types）─────────────────────
 
@@ -583,12 +585,10 @@ function registerIPC(): void {
             settle('failed')
           }, 5000)
 
-          let mod: typeof import('https') | typeof import('http')
+          let mod: typeof https | typeof http
           try {
             const parsedUrl = new URL(mcp.url!)
-            mod = parsedUrl.protocol === 'https:'
-              ? (require('https') as typeof import('https'))
-              : (require('http') as typeof import('http'))
+            mod = parsedUrl.protocol === 'https:' ? https : http
           } catch {
             clearTimeout(timer)
             resolve('failed')
@@ -1027,7 +1027,6 @@ function registerIPC(): void {
     // 否则尝试从 SkillHub API 拉取（通过 HTTP 下载 .md 文件）
     // SkillHub API 地址：根据 skill 名称拼接
     return new Promise((resolve, reject) => {
-      const https = require('https') as typeof import('https')
       const apiUrl = `https://skills.netease.com/api/skills/${encodeURIComponent(target)}/content`
       https.get(apiUrl, (res) => {
         if (res.statusCode !== 200) {
