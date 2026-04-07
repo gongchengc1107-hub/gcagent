@@ -286,6 +286,8 @@ class OpenCodeSSEManager {
         questions: Array<{
           question: string
           header?: string
+          multiple?: boolean
+          custom?: boolean
           options?: Array<{ label: string; description?: string }>
         }>
         tool: { messageID: string; callID: string }
