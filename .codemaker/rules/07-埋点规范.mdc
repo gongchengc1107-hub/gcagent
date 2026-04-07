@@ -1,0 +1,91 @@
+---
+description: 项目的埋点规范，基于自研 AnalysisTool（src/utils/analysis.ts）的埋点方案。当需要添加用户行为埋点时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 埋点规范（AnalysisTool）
+
+## 架构说明
+
+项目使用**自研埋点系统** `AnalysisTool`（`src/utils/analysis.ts`），上报至内部 `muse-analysis` 服务：
+
+- `analysis.ts` 在模块加载时自动实例化并挂载到 `window.__Analysis__`
+- 在 `src/app.tsx` 的 `getInitialState` 完成后调用 `analysis.init(userInfo)` 注入用户信息（email、uid、dep）
+- **所有环境均会上报**（test / uat / prod），但本地开发因 `host` 匹配不到映射表而自动跳过
+- 可通过 `localStorage.setItem('muse_no_body_know_what_it_is', 'true')` 强制关闭上报（调试用）
+
+### 自动上报（无需手动调用）
+
+| 类型 | 触发时机 | 实现位置 |
+|------|----------|----------|
+| **PV（access）** | URL 变化时自动触发（`LocationObserver` 监听 `pushState` / `replaceState` / `popstate`）| `analysis.ts` 内部 |
+| **API 请求（api）** | 每次请求发出时自动上报，无需业务代码干预 | `src/utils/ajax.ts` 拦截器 |
+
+### 手动上报
+
+业务代码只需调用 **`analysis.track()`** 上报自定义业务事件：
+
+```typescript
+import analysis, { EventType } from '@/utils/analysis';
+
+// 上报自定义 track 事件
+analysis.track(
+  { key: 'click_publish_work' },   // data：必须包含 key 字段作为 event_key
+  { work_type: 'illustration' },   // extra：业务自定义属性，任意 KV
+);
+```
+
+## EventType 枚举
+
+```typescript
+export enum EventType {
+  access = 'access',       // PV，自动触发，禁止手动上报
+  click  = 'click',        // 点击，预留（listenDomClick 默认未开启）
+  api    = 'api',          // 接口请求，自动触发，禁止手动上报
+  track  = 'track',        // 自定义业务事件，业务代码唯一应使用的类型
+  performance = 'performance', // 性能指标，使用 analysis.performance()
+}
+```
+
+## 业务代码使用规范
+
+### track 事件（常用）
+
+```typescript
+import analysis from '@/utils/analysis';
+
+// ✅ 正确：上报业务事件
+analysis.track(
+  { key: 'submit_demand_form' },
+  { demand_type: 'illustration', budget: 1000 },
+);
+
+// ✅ 正确：无额外属性时可省略第二个参数
+analysis.track({ key: 'open_painter_detail' });
+```
+
+### performance 事件
+
+```typescript
+// 上报性能指标
+analysis.performance('image_load_time', { duration: 320, url: imgUrl });
+```
+
+### event_key 命名规范
+
+| 场景 | 格式 | 示例 |
+|------|------|------|
+| 按钮点击 | `click_<模块>_<动作>` | `click_work_publish` |
+| 弹层打开 | `open_<弹层名>` | `open_painter_detail` |
+| 表单提交 | `submit_<表单名>` | `submit_demand_form` |
+| 性能指标 | `perf_<指标名>` | `perf_image_load` |
+
+## 规范约束（NON-NEGOTIABLE）
+
+- **禁止**手动调用 `analysis.access()` 或 `analysis.api()`，这两类事件由框架自动处理
+- **禁止**引入 Hubble / DATracker 等第三方埋点 SDK 替代 `AnalysisTool`；业务埋点统一使用 `analysis.track()`
+- **禁止**上报含用户隐私的原始数据（手机号、密码、邮件正文等）
+- `track` 的 `data.key` 字段即最终上报的 `event_key`，命名须有实际业务含义，避免 `click1`、`test` 等无意义命名
+- `extra` 中的属性名使用 **snake_case**，与后端分析平台字段保持一致
+</rule>

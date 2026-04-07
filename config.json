@@ -1,0 +1,4 @@
+{
+  "model": "netease-codemaker/claude-opus-4-6",
+  "$schema": "https://api-code-maker.nie.netease.com/main/config/config.json"
+}

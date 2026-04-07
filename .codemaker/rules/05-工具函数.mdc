@@ -1,0 +1,130 @@
+---
+description: 项目工具函数速查，包括 src/utils/util.ts 的常用方法、请求层级说明（OpenApiServices / ajax.ts）、文件类型判断、图片 FP 处理、开发命令。当使用工具函数、判断文件类型或下载文件时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 工具函数规范
+
+## 使用原则
+
+- 编写工具函数前**优先查阅 `ahooks`** 是否已有实现
+- 通用工具放在 `src/utils/util.ts`，禁止在业务组件内内联重复实现
+- 使用 `lodash`（alias 指向 lodash-es）处理集合操作
+
+## 请求层级说明（NON-NEGOTIABLE）
+
+| 文件 | 用途 | 业务代码可调用？ |
+|------|------|----------------|
+| `src/OpenApiServices/` | OpenAPI 自动生成的服务方法，覆盖大多数接口 | ✅ **优先使用** |
+| `src/services/` | 历史遗留（pont-engine 生成），部分老业务 | ⚠️ 可用，但新功能不应在此新增 |
+| `src/utils/ajax.ts` | 底层 axios 封装，含拦截器 | ❌ **禁止直接调用** |
+
+> 业务代码调用接口的唯一正确姿势：`import { xxxApi } from '@/OpenApiServices/xxx'`
+
+---
+
+## 常用工具函数速查（src/utils/util.ts）
+
+```typescript
+import util from '@/utils/util';
+
+// ── 文件下载 ──────────────────────────────────────────
+util.downloadFile({ url, filename?, needFetch? })  // 单文件下载
+util.downloadFiles(files: { url? }[])              // 批量下载
+
+// ── 复制到剪贴板 ──────────────────────────────────────
+util.copy(text, msg?)   // msg=false 则不显示 toast
+
+// ── 数字格式化 ────────────────────────────────────────
+util.addCommas(n)        // 数字加千分位逗号：1234567 → '1,234,567'
+util.bytesToSize(bytes)  // 字节转可读大小：1024 → '1 KB'
+util.shiftToKW(n)        // 数字转 k/w 格式：10000 → '1w'
+util.numToZN(num)        // 数字转中文
+
+// ── URL 处理 ──────────────────────────────────────────
+util.parseUrl('/api/:id/:type', [1, 'work'])  // → '/api/1/work'
+util.isUrl(text)
+util.getHostname(url)
+util.openLink(url, target?)  // 自动补全 http://
+
+// ── 表单 / 过滤 ───────────────────────────────────────
+util.checkForm(formFields)                              // 清除 null/undefined/空数组，保留 0/false
+util.searchTextHandle(originText, setter, pageSetter?)  // 搜索防抖（自动重置第1页）
+util.filterPageHandle(setter, pageSetter?)              // 过滤器变更时重置页码
+
+// ── 树操作 ────────────────────────────────────────────
+util.traverseTree(nodes, callback)
+util.traverseTreeRevert(nodes, callback)
+util.getFieldByTraverseTree(node, fieldPath)
+util.findPathByTraverseTree(nodes, checker)
+util.mapTreeNodeWithKey(nodes, getKey, getNode?)  // → Map<key, TreeNode>
+util.deleteInTree(nodes, checkDelete)
+util.insertIntoTree(nodes, insertNode, checkInsert)
+
+// ── 权限辅助 ──────────────────────────────────────────
+util.checkAccess(accessKey, access, userInfo, route?, extra?)
+util.checkRoles(need, has)
+
+// ── 其他 ──────────────────────────────────────────────
+util.sleep(ms)
+util.stopEvent(e)
+util.getPopContainer(trigger)   // 获取最近滚动容器（用于 Select/Dropdown 的 getPopupContainer）
+util.middle(max, min, num)      // 限制数字在 [min, max] 范围内
+```
+
+---
+
+## 文件类型判断
+
+**禁止**自己写文件扩展名正则，统一使用 `util` 的类型检查方法：
+
+```typescript
+import util from '@/utils/util';
+
+util.isImage(file)    // 图片（jpg/png/gif/webp/…）
+util.isVideo(file)    // 视频
+util.isAudio(file)    // 音频
+util.isPsd(file)      // PSD
+util.isAe(file)       // AE
+util.isAi(file)       // AI
+util.isFbx(file)      // FBX
+util.isDoc(file)      // Word
+util.isXls(file)      // Excel
+util.isPdf(file)      // PDF
+util.isArchive(file)  // 压缩包（zip/rar/7z）
+
+util.getFileTypeIcon(file, onlyIcon?)  // 获取文件类型图标 URL
+```
+
+---
+
+## 图片 FP 裁剪（NetEase FP 服务）
+
+```typescript
+// 按宽高裁剪（只对 fp.ps.netease.com 域名生效）
+util.fpOverride(url, { mode: 1, width: 200, height: 200, quality: 99 })
+
+// 正方形缩略图
+util.fpOverSquare(url, 22)  // 22×22
+```
+
+---
+
+## 开发命令速查
+
+```bash
+pnpm start   # 启动开发服务器（本地端口见 .env 配置）
+pnpm build   # 生产构建
+pnpm lint    # ESLint 检查
+pnpm api:genapi     # 从 OpenAPI 规范重新生成 src/OpenApiServices/
+```
+
+### ESLint / Prettier 规范
+
+- 行宽 **120** 字符
+- 引号：**单引号**
+- 尾随逗号：**始终加**
+- hooks 依赖：使用 `useMemoizedFn` 避免 `exhaustive-deps` 警告
+- React 组件必须是**箭头函数**，禁止 `function` 关键字声明组件
+</rule>

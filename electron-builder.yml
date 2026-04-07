@@ -1,0 +1,25 @@
+appId: com.netease.codemaker-dashboard
+productName: Codemaker Dashboard
+directories:
+  output: dist
+  buildResources: build
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  icon: build/icon.icns
+dmg:
+  title: Codemaker Dashboard
+  artifactName: "${productName}-${version}.${ext}"
+asar: true
+files:
+  - out/**/*
+  - "!node_modules/**/*"
+  # node-pty 是原生模块（.node 文件），必须单独包含，不能被 asar 压缩
+  - node_modules/node-pty/**/*
+# node-pty 需从 asar 中解压，原生模块无法在 asar 内直接加载
+asarUnpack:
+  - "**/node_modules/node-pty/**"
+extraMetadata:
+  main: out/main/index.js

@@ -1,0 +1,48 @@
+---
+description: 项目权限系统规范。未启用 UmiJS access 插件，权限通过 Redux state 判断。当涉及权限判断、角色控制、管理员判定时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 权限系统规范（强制执行）
+
+本项目**未启用** UmiJS `access` 插件（`src/access.ts` 不存在）。权限判断通过 **Redux state** 实现：
+
+```typescript
+import { useTypedSelector } from '@/redux/useTypedSelector';
+
+// ✅ 正确 - 通过 Redux state 获取权限信息
+const { isAdmin, systemManagement } = useTypedSelector((state) => state.account);
+const { permissions, currentOrg } = useTypedSelector((state) => ({
+  permissions: state.organization.permissions,
+  currentOrg: state.organization.currentOrg,
+}));
+
+// 判断全局管理员
+if (isAdmin || systemManagement) { ... }
+
+// 判断仓库级权限
+if (permissions?.download) { ... }
+if (currentOrg?.permit?.edit) { ... }
+if (currentOrg?.adminFlag) { ... }
+```
+
+## 权限来源
+
+| 来源 | 字段 | 说明 |
+|------|------|------|
+| `state.account` | `isAdmin` | 是否全局超级管理员 |
+| `state.account` | `systemManagement` | 是否系统管理角色 |
+| `state.account` | `menuPermissions` | 菜单级权限 |
+| `state.account` | `customRoleInfo` | 自定义角色信息 |
+| `state.organization` | `permissions` | 当前仓库的操作权限（download / upload / edit 等） |
+| `state.organization` | `currentOrg.permit` | 当前仓库的准入权限 |
+| `state.organization` | `currentOrg.adminFlag` | 是否当前仓库管理员 |
+
+> 本项目使用网易内部 SSO 认证体系，Token 管理由 SSO 统一处理，无需业务代码介入。
+
+## 禁止事项
+
+- **禁止**硬编码角色字符串做权限判断（如 `role === 'admin'`）
+- **禁止**使用 UmiJS `access` 插件或 `useAccess` Hook
+</rule>

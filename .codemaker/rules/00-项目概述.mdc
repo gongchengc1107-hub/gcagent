@@ -1,0 +1,91 @@
+---
+description: 项目定位与技术栈概览。当需要了解项目背景、使用的技术栈时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 项目概述
+
+## 项目定位
+
+MUSE（素材资产管理平台）：网易内部数字资产管理系统，用于管理游戏开发中的各类素材资源，包括 3D 模型、音频、图片、视频、特效、工程文件等。平台支持素材的上传、分类、搜索、预览、下载、协作共享等功能，服务于游戏研发团队的资产管理需求。基于 React 18 + TypeScript 的单页应用（SPA）。
+
+## 技术栈
+
+| 领域 | 技术 | 说明 |
+|------|------|------|
+| UI 框架 | React ^18 | 强制使用 |
+| 类型系统 | TypeScript 4.9 | 强制使用，禁止 JavaScript |
+| 应用框架 | UmiJS 4.x（`@umijs/max`） | 提供路由、构建、运行时配置 |
+| 路由管理 | UmiJS 内置路由（`history` / `useNavigate`） | 使用 hash 路由模式；**禁止**直接使用 React Router |
+| 状态管理 | Redux + MobX + UmiJS `useModel`（三者并用，视具体场景选用） | 全局状态 Hook 放在 `src/models/`；Redux 在 `src/redux/`；无统一强制优先级 |
+| 组件库 | `@bedrock/components`（网易内部库） | 所有 UI 必须优先使用 Bedrock 组件；**禁止**引入 Ant Design 组件 |
+| 样式方案 | **Tailwind CSS 优先** + `styled-components`（复杂样式）+ Less（全局基础样式） | 组件日常样式优先用 Tailwind；禁止硬编码颜色值 |
+| HTTP 请求 | `src/OpenApiServices/`（自动生成）+ `src/utils/ajax.ts`（底层封装） | 业务代码只调用 OpenApiServices；**禁止**直接调用 `ajax.ts` 或裸用 `axios` / `fetch` |
+| 权限控制 | Redux state（`state.account` + `state.organization`） | 通过 `useTypedSelector` 获取权限信息，详见 `12-权限系统规范.mdc` |
+| 事件总线 | Node.js `EventEmitter`（`src/utils/events.ts`） | 跨组件信号通信，事件名统一定义为常量 |
+| Hooks 工具 | `ahooks` | 编写 Hook 时优先查阅 ahooks 是否已有实现 |
+| 工具函数 | `lodash`（alias 指向 lodash-es） | `import from 'lodash'`，构建时自动 tree-shake |
+| 时间工具 | `dayjs` | 涉及日期时间处理统一用 dayjs；禁止 moment |
+| 3D 渲染 | `Three.js 0.160` + `@muse/3d-viewer` | 3D 预览功能使用内部封装组件 |
+| 拖拽功能 | `@dnd-kit` + `react-dnd` + `sortablejs` | — |
+| 虚拟列表 | `react-virtualized` + `react-virtualized-auto-sizer` | — |
+| 国际化 | `i18next` + `kiwi-intl` | 新开发功能**暂不需接入** i18n |
+| 认证体系 | 网易内部 SSO | Token 由 SSO 统一管理，业务代码无需介入 |
+| 构建工具 | UmiJS（Babel + Webpack 封装） | — |
+| 包管理器 | pnpm 7.33（Node.js 18.x） | — |
+
+## 应用启动流程
+
+render() [SSO 认证]
+  └─> getInitialState()
+        ├─ 获取用户信息（SSO 登录态）
+        └─ 加载全局字典 / 初始配置
+              └─> rootContainer
+                    └─> layout
+                          └─> 页面组件（权限在组件内部通过 Redux state 判断）
+
+## 业务模块速查
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| **首页/探索** | `pages/Featured`、`pages/Explore` | 展示 Banner、推荐素材、活动日历等 |
+| **仓库模块** | `pages/<org>/<assetType>` | 按仓库+素材类型浏览，如 `/org/model`、`/org/audio` |
+| **全局搜索** | `pages/Search` | 跨仓库全局搜索 |
+| **图库** | `pages/Gallery` | 图片素材浏览与详情 |
+| **个人中心** | `pages/PersonCenter` | 收藏、历史、我的上传等 |
+| **管理后台** | `pages/Admin` | 素材审核、标签管理、用户管理、供应商管理等 |
+| **问答专区** | `pages/QA` | 素材相关 QA 讨论 |
+| **供应商** | `pages/Supplier` | 供应商列表与主页管理 |
+
+## 素材类型速查
+
+| 英文标识 | 中文名称 |
+|---------|---------|
+| `model` | 3D 模型 |
+| `audio` | 音频 |
+| `gallery` | 图库 |
+| `effects` | 特效 |
+| `engineering` | 工程文件 |
+| `simpleAction` | 简单动作 |
+| `advancedMaterial` | 高级材质 |
+| `patent` | 专利 |
+| `innovation` | 创新素材 |
+| `tools` | 工具 |
+
+## 核心功能模块
+
+- 素材分类管理、标签系统、版本控制
+- 权限管理（多角色：普通用户/管理员/超级管理员/供应商/财务管理员等）
+- 协作共享、购物车、收藏、评分评论
+- QA 问答、供应商管理、多仓库/多组织结构
+- 性能监控（`withPM` 高阶组件 + `window.performanceReport`）
+
+## 重要约束
+
+- 使用 hash 路由模式（`#/path`）
+- 生产环境部署路径：`/muse_m_new/`
+- 需兼容网易内部 SSO 认证体系
+- 部分资源从内部 CDN 加载
+- 支持 Scout 监控上报（网易内部监控）
+</rule>

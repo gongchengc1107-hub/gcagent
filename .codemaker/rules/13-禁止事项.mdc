@@ -1,0 +1,26 @@
+---
+description: 项目核心禁止事项汇总。当编写或审查代码时读取此规则，确保不违反项目强制约束。
+alwaysApply: false
+---
+
+<rule>
+# 禁止事项汇总（强制执行）
+
+| # | 禁止行为 | 正确做法 |
+|---|---------|---------|
+| 1 | 硬编码角色字符串做权限判断 | 通过 Redux state（`state.account.isAdmin`、`state.organization.permissions` 等）获取权限信息 |
+| 2 | 直接使用 `axios` / `fetch` 发请求 | 使用 `src/OpenApiServices/` 中的服务方法 |
+| 3 | 直接调用 `src/utils/ajax.ts` | 该文件是底层封装，供 OpenApiServices 内部使用；业务代码禁止直接引用 |
+| 4 | 手工修改 `src/OpenApiServices/` 下的自动生成代码 | 执行接口更新命令重新生成 |
+| 5 | 硬编码颜色值（如 `#0057FF`） | 使用 `var(--primary-1)` 等 CSS 变量 |
+| 6 | 在 `app.tsx` 中使用 UmiJS hooks（`useModel` 等） | 在页面组件中使用 |
+| 7 | 添加全局事件而不在 `events.ts` 声明常量 | 先在 `events.ts` 定义常量再使用 |
+| 8 | 使用 `moment` | 统一使用 `dayjs` |
+| 9 | 直接引入 Ant Design 组件（如 `import { Form } from 'antd'`） | 使用 `@bedrock/components`（Bedrock 有自己的 Form 组件） |
+| 10 | 在页面组件中直接 `console.log` 敏感信息 | — |
+| 11 | 未经验证就从 `@bedrock/components` import 组件 | 必须触发 `bedrock-component-lookup` Skill 查询文档并缓存，确认组件存在后再使用 |
+| 12 | 猜测项目专有名词/业务约定而不查阅知识库 | 先查阅 `.codemaker/knowledge/` 对应分类文件（触发 `project-knowledge` Skill），确认无记录再提问 |
+| 13 | 将代码输出到会话消息中（而非写入文件） | 所有代码必须通过工具直接写入文件，**禁止在回复正文中输出代码块让用户复制粘贴** |
+| 14 | 跳过自查直接进入下一步编码 | 每次生成/修改代码文件后，必须立即触发 `review-code` Skill 执行全部检查项并通过，才允许继续下一步编码（见 GATE-1） |
+| 15 | Tailwind 能实现的样式却用 styled-components | 布局/间距/尺寸/颜色/字体/伪元素/嵌套选择器/滚动条等常规样式必须用 Tailwind；styled-components 仅限多动态 Props 联动、`createGlobalStyle` 覆盖第三方组件内部类名、自定义 keyframe 动画三种场景（详见 `04-样式规范.mdc`） |
+</rule>

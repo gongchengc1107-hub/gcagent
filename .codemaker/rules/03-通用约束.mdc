@@ -1,0 +1,107 @@
+---
+description: 项目的通用约束，包括中文注释要求、可观测性与兜底规范。当需要确认通用约束时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 通用约束
+
+## 语言规范
+
+- 所有文档和代码注释必须使用中文
+- 代码变量/函数命名仍使用英文（遵循编码规范）
+
+## 可观测性与兜底
+
+- AI 任务需要完整链路：任务 ID、素材/模型引用、日志追踪
+- 失败时提供兜底提示与重试机制
+
+## 开发调试日志规范
+
+### 原则
+
+AI 在实现代码时，应主动在关键节点插入 `console.log` 输出调试信息，帮助用户观察运行时行为、定位问题。用户不一定能准确描述报错信息，调试日志是 AI 自查与协作排错的重要手段。
+
+### 插入时机
+
+| 场景 | 示例 |
+|------|------|
+| 接口请求前后 | `console.log('[fetchList] params:', params)` / `console.log('[fetchList] response:', data)` |
+| 状态变更 | `console.log('[onStatusChange]', oldStatus, '->', newStatus)` |
+| 条件分支进入 | `console.log('[render] 进入空状态分支, list.length=', list.length)` |
+| 异常捕获 | `console.log('[handleSubmit] error:', error)` |
+
+### 格式约束
+
+- 日志前缀使用 `[函数名/模块名]` 格式，便于在控制台中过滤
+- **禁止**输出 token、secretKey 等敏感信息（参见 muse-rule.mdc 禁止事项 #10）
+
+### 生命周期
+
+1. **开发阶段**：主动插入，作为调试辅助
+2. **验收通过后**：必须删除所有自己产生的 `console.log`，不留入生产代码
+3. **提交前自查**：确认无遗漏的调试日志
+
+## 占位元素使用规范
+
+### 使用场景
+
+以下情况使用占位元素，不实现临时方案：
+
+- 图标资源未确定（等待 iconfont）
+- 图片资源未确定（等待设计提供）
+- 第三方资源未接入
+
+### 处理原则
+
+| 场景 | 处理方式 |
+|------|----------|
+| 图标 | 使用带 `$placeholder` 标记的 `styled.div` |
+| 图片 | 使用带 `$placeholder` 标记的 `styled.div` |
+| 后续替换 | 添加 TODO 注释标记替换点 |
+
+### 示例
+
+```tsx
+const PlaceholderIcon = styled.div`
+  width: 24px;
+  height: 24px;
+  background: var(--fill-2);
+`;
+
+// 新建按钮图标（等待 iconfont）
+<PlaceholderIcon>
+  {/* TODO: 替换为 @bedrock/icons-react 图标 */}
+</PlaceholderIcon>
+```
+
+### 约束
+
+- 禁止使用 svg 临时实现图标
+- 禁止使用 placeholder 图片服务
+- 明确标记替换点，便于后续批量替换
+
+## 新增第三方依赖规范
+
+当实现过程中需要安装新的 npm 包时：
+
+1. 先确认该包未被项目安装（检查 `package.json`）
+2. 使用 `pnpm add` 安装
+3. 安装完成后必须在回复中**明确报告**新增的依赖及版本，格式：
+   ```
+   📦 新增依赖：@ahooksjs/use-url-state@3.5.1
+   ```
+4. 若安装时出现 peer dependency 警告，评估影响并告知用户
+
+## 通用约束汇总
+
+以下约束已在前文详述，此处汇总便于快速查阅：
+
+| 约束 | 来源 |
+|------|------|
+| TypeScript 强制使用 | `muse-rule.mdc`（技术栈速查） |
+| 项目结构规范（禁止新建非标准目录） | `02-项目结构.mdc` |
+| 路由配置集中管理 | `06-路由规范.mdc` |
+| 接口调用规范（禁止裸用 axios） | `02-项目结构.mdc` |
+| 主题色 CSS 变量使用 | `04-样式规范.mdc` |
+</rule>

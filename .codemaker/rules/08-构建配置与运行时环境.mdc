@@ -1,0 +1,166 @@
+---
+description: UmiJS 构建配置解读，包括全局注入的 window 变量、预加载脚本、性能监控、错误监控（Scout）、px2rem 转换规则等。当需要了解运行时环境、使用全局变量或新增脚本时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 构建配置与运行时环境（.umirc.ts）
+
+## 插件与核心开关
+
+| 配置项 | 说明 |
+|--------|------|
+| `styledComponents: {}` | 启用 UmiJS 官方 styled-components 支持 |
+| `model: {}` | 启用 `useModel` 全局状态插件 |
+| `initialState: {}` | 启用 `@@initialState` 插件 |
+| `antd: false` | **禁用 Ant Design**，组件库统一使用 `@bedrock/components` |
+| `less: {}` | 启用 Less 编译（用于全局基础样式） |
+| `tailwindcss: {}` | 启用 Tailwind CSS 支持 |
+| `hash: true` | 构建产物文件名带内容 hash，用于长期缓存 |
+| `ignoreMomentLocale: true` | 移除 moment.js 非必要 locale，减小包体积 |
+
+## alias 别名
+
+```typescript
+alias: {
+  lodash: 'node_modules/lodash-es',  // lodash 自动重定向到 lodash-es（tree-shakeable）
+}
+```
+
+> **重要**：业务代码中 `import xxx from 'lodash'` 实际引用的是 `lodash-es`，享受 tree-shaking。**不要**显式写 `import from 'lodash-es'`，统一写 `import from 'lodash'`。
+
+## headScripts：页面 `<head>` 预注入脚本
+
+以下脚本在 React 应用启动**之前**注入，按顺序执行：
+
+### 1. `window.__ENV__`
+```typescript
+window.__ENV__ = {
+  isProduction?: true,  // CI_BUILD_REF_NAME === 'production'
+  isTest?: true,        // CI_BUILD_REF_NAME === 'master' 或本地开发
+  isDev?: true,         // NODE_ENV === 'development'
+}
+```
+用于区分运行环境，值只包含为 `true` 的 key（其余不存在）。
+> 本地开发时 `isDev` 与 `isTest` 同时为 `true`。
+
+### 2. `window.buildTime`
+可在控制台查看当前运行的构建版本时间，性能上报中自动附带此字段。
+
+### 3. `scripts/errorHandler.js`（Chunk 加载失败自动刷新）
+- 监听 `window.error` 事件，捕获 `"Loading chunk"` 类错误
+- 在 **5 分钟内最多自动刷新 3 次**，超限后停止
+- 刷新记录存储在 `sessionStorage['muse_error_page_refresh_record']`
+
+### 4. `scripts/performance.js`（性能监控）
+注入 `window.performanceReport`，自动采集并上报页面性能数据：
+
+| 指标 | 含义 |
+|------|------|
+| `FCP` | 首次内容绘制 |
+| `LCP` | 最大内容绘制 |
+| `domContentLoaded` | DCL 耗时 |
+| `dns / tcp / ssl` | 网络阶段耗时 |
+| `totalTime` | 从导航开始到 `pageReady` 的总耗时 |
+| `resourceInfo` | 未命中缓存的 JS / CSS 资源数量与大小 |
+
+**性能打点节点**（在对应业务时机调用）：
+```typescript
+window.performanceReport?.record('userInfoLoaded');  // 用户信息加载完成
+window.performanceReport?.record('appInited');        // 应用初始化完成（layouts/layout.tsx）
+window.performanceReport?.record('dataLoaded');       // 页面数据加载完成
+window.performanceReport?.record('pageReady');        // 必须调用！触发最终上报
+```
+
+**发送示例**（列表页/详情页数据加载完成后）：
+```typescript
+window.performanceReport?.send({
+  route: '/#/muse/search',
+  assetType: currentType,  // 可选业务参数
+});
+```
+
+**长任务监控**（可选）：
+```typescript
+window.performanceReport?.startLongTaskObserver();
+window.performanceReport?.longTaskObserver?.addTag('load_asset_list');
+window.performanceReport?.longTaskObserver?.removeTag('load_asset_list');
+```
+
+## 组件级性能监控（`src/Performance.tsx`）
+
+使用 `withPM` 高阶组件包装 React 组件，基于 React Profiler API 采集渲染性能数据：
+
+```typescript
+import withPM from '@/Performance';
+
+// 基础用法 - 仅控制台输出
+export default withPM(MyComponent, {
+  componentName: 'MyComponent',
+  threshold: 20,  // 超过 20ms 才输出日志
+});
+
+// 启用上报
+export default withPM(AssetList, {
+  componentName: 'AssetList',
+  threshold: 10,
+  report: true,         // 默认超过 50ms 上报
+  reportThreshold: 100, // 自定义阈值（ms）
+});
+```
+
+> 需在 `.umirc.ts` 配置 `'react-dom$': path.resolve(..., 'react-dom/profiling')` 以启用 Profiler。
+
+## asyncScriptConfig：异步加载脚本
+
+### Scout（错误监控 SDK）
+- 仅在 master（test）和 production 环境启用
+- 配置忽略：401/403/5xx HTTP 错误、`unhandledrejection`、`ResizeObserver` 噪音
+- API 监控：仅上报 `/api/` 路径，排除 `muse-analysis`
+
+```typescript
+window.Scout?.captureError?.(new Error('xxx'));  // 手动上报错误
+```
+
+## PostCSS 插件：px → rem 转换
+
+```typescript
+@bedrock/pxtorem-postcss8({
+  rootValue: 16,  // 1rem = 16px
+  propList: ['*', '!border', '!border-*-width', ...],  // 排除 border 相关属性
+})
+```
+
+> `16px` → `1rem`，写 styled-components 时直接写 `px`，构建后自动转换，**无需手动写 `rem`**。
+
+## `window.loadScript` 工具函数
+
+由 `@bedrock/async-script-plugin` 注入，用于动态加载外部脚本：
+
+```typescript
+window.loadScript({
+  src: 'https://example.com/sdk.js',
+  onLoad: () => { /* SDK 加载完成后的初始化逻辑 */ },
+});
+```
+
+> Scout SDK 通过此方式异步加载，业务代码**禁止**直接使用 `loadScript` 加载第三方依赖。
+
+## 部署与环境
+
+| 环境 | 分支 | 部署路径 |
+|------|------|---------|
+| 生产环境 | `production` | `/muse_m_new/` |
+| 测试环境 | `master` | — |
+| 本地开发 | — | `http://localhost:PORT`（PORT 见 `.env` 配置） |
+
+> **禁止**盲猜端口为 `8000`，实际端口在 `.env` 文件中定义。
+
+## 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `pnpm start` | 本地开发 |
+| `pnpm build` | 生产构建 |
+| `pnpm api:genapi` | 重新生成接口文件（`src/OpenApiServices/`） |
+</rule>

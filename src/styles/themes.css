@@ -1,0 +1,66 @@
+/* ===== Light Theme (默认) ===== */
+:root,
+html[data-theme='light'] {
+  /* 背景色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f8;
+  --bg-sidebar: #202123;
+
+  /* 文字色 */
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4a;
+  --text-muted: #9a9a9a;
+
+  /* 侧边栏文字色 */
+  --sidebar-text: #ececf1;
+  --sidebar-text-muted: #8e8ea0;
+  --sidebar-hover: #2a2b32;
+  --sidebar-active: #343541;
+
+  /* 边框色 */
+  --border-primary: #e5e5e5;
+  --border-secondary: #f0f0f0;
+
+  /* 强调色 */
+  --accent-primary: #10a37f;
+  --accent-hover: #0d8c6d;
+
+  /* 状态色 */
+  --success: #52c41a;
+  --warning: #faad14;
+  --error: #ff4d4f;
+  --info: #1677ff;
+}
+
+/* ===== Dark Theme ===== */
+html[data-theme='dark'] {
+  /* 背景色 */
+  --bg-primary: #343541;
+  --bg-secondary: #40414f;
+  --bg-sidebar: #202123;
+
+  /* 文字色 */
+  --text-primary: #ececf1;
+  --text-secondary: #c5c5d2;
+  --text-muted: #8e8ea0;
+
+  /* 侧边栏文字色 */
+  --sidebar-text: #ececf1;
+  --sidebar-text-muted: #8e8ea0;
+  --sidebar-hover: #2a2b32;
+  --sidebar-active: #343541;
+
+  /* 边框色 */
+  --border-primary: #4e4f60;
+  --border-secondary: #565869;
+
+  /* 强调色 */
+  --accent-primary: #10a37f;
+  --accent-hover: #1ab98f;
+
+  /* 状态色 */
+  --success: #52c41a;
+  --warning: #faad14;
+  --error: #ff4d4f;
+  --info: #1677ff;
+}

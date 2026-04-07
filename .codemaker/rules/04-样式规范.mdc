@@ -1,0 +1,262 @@
+---
+description: 项目的样式规范，包括 Tailwind CSS 优先、styled-components 使用、Less 约束、Bedrock CSS 变量。当编写组件样式或主题适配时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 样式规范
+
+## 基础原则
+
+- 组件库使用 `@bedrock/components`（网易内部库）；**禁止**引入 Ant Design 组件
+
+### Bedrock 组件代理层（BedrockComponentsProxy）
+
+> 本项目通过 Webpack alias 将 `@bedrock/components` 指向本地代理文件 `src/components/BedrockComponentsProxy/index.ts`，对部分组件做了替换：
+
+| 原始组件 | 代理后指向 | 替换原因 |
+|---------|-----------|---------|
+| `Select` | `src/components/PMSelect` | 加入性能监控（`withPM`）包装 |
+
+**使用影响**：
+- 业务代码中 `import { Select } from '@bedrock/components'` 实际引入的是 **PMSelect**，无需额外操作
+- 除 `Select` 外，其他组件均透传原始 Bedrock 实现，行为不变
+- **禁止**绕过代理直接 `import from '@bedrock/components/es/index'`（除非在代理文件内部）
+- 如需为其他 Bedrock 组件添加代理（如性能监控包装），在 `BedrockComponentsProxy/index.ts` 中按 `Select` 的模式扩展
+- **Tailwind CSS 优先**：日常布局、间距、尺寸、颜色等优先使用 Tailwind 工具类
+- **styled-components 仅作最后手段**：仅在 Tailwind 无法实现时才允许（多动态 Props 联动、createGlobalStyle 覆盖第三方组件内部类名、自定义 keyframe 动画）
+- **Less 仅用于全局基础样式**：全局 CSS 变量注入、Bedrock 主题导入等，禁止在 Less 中编写组件业务样式
+- **严格禁止**硬编码颜色值（如 `color: #0057FF`）；统一使用 Bedrock 提供的 CSS 变量
+
+## Tailwind CSS 使用规范
+
+```tsx
+// ✅ 优先用 Tailwind 工具类处理常见布局和间距
+<div className="flex items-center gap-2 px-4 py-2">
+  <span className="text-sm font-medium truncate">标题</span>
+</div>
+
+// ✅ 复杂条件类名使用 classnames 库
+import classNames from 'classnames';
+<div className={classNames('flex items-center', { 'opacity-50': disabled })}>
+
+// ❌ 不要为简单布局创建 styled-components
+const FlexWrapper = styled.div`display: flex; align-items: center;`; // 没必要
+```
+
+**Tailwind 适用场景**：
+- 布局（flex / grid / 定位）
+- 间距（padding / margin / gap）
+- 尺寸（width / height）
+- 文字排版（font-size / font-weight / line-height）
+- 简单的悬停/焦点状态（hover: / focus:）
+
+## Tailwind CSS 与 styled-components 选择判断（NON-NEGOTIABLE）
+
+能用 Tailwind 解决的**必须**用 Tailwind，不允许为可用工具类表达的样式创建 styled 组件。
+
+| 场景 | 必须用 Tailwind | 必须用 styled |
+|------|----------------|--------------|
+| 布局（flex/grid/定位/尺寸/间距） | ✅ | — |
+| 颜色（文字/背景/边框，见下方 className 速查） | ✅ | — |
+| 伪类 `:hover` / `:focus`（单行） | ✅ `hover:bg-fill-2` | — |
+| 动态 `$props` 驱动的样式 | — | ✅ |
+| 多行伪类 / `::before` / `::after` | — | ✅ |
+| 第三方子组件选择器（如 `.rock-modal-body`） | — | ✅ |
+| `rgba(var(--xxx-t), 0.N)` 透明度组合 | — | ✅ |
+| keyframe 动画 | — | ✅ |
+
+## Tailwind className 速查（tailwind.config.js 生成）
+
+> 以下 className 直接对应 Bedrock CSS 变量，**无需** `style={{ color: 'var(--xxx)' }}` 写法。
+
+### 文字颜色 `text-`
+
+| className | CSS 变量 |
+|-----------|---------|
+| `text-color-1` | `--text-color-1` |
+| `text-color-2` | `--text-color-2` |
+| `text-color-3` | `--text-color-3` |
+| `text-color-4` | `--text-color-4` |
+| `text-primary-1` ~ `text-primary-5` | `--primary-1` ~ `--primary-5` |
+| `text-fill-1` ~ `text-fill-4` | `--fill-1` ~ `--fill-4` |
+
+### 背景色 `bg-`
+
+| className | CSS 变量 |
+|-----------|---------|
+| `bg-1` ~ `bg-5` | `--bg-1` ~ `--bg-5` |
+| `bg-fill-1` ~ `bg-fill-4` | `--fill-1` ~ `--fill-4` |
+| `bg-primary-1` ~ `bg-primary-5` | `--primary-1` ~ `--primary-5` |
+| `bg-modal-shade` | `--modal-shade` |
+
+### 边框色 `border-`
+
+| className | CSS 变量 |
+|-----------|---------|
+| `border-color-1` | `--border-color-1` |
+| `border-color-2` | `--border-color-2` |
+| `border-color-3` | `--border-color-3` |
+| `border-fill-1` ~ `border-fill-4` | `--fill-1` ~ `--fill-4` |
+
+### 阴影 `shadow-`
+
+| className | CSS 变量 |
+|-----------|---------|
+| `shadow-1` ~ `shadow-4` | `--box-shadow-1` ~ `--box-shadow-4` |
+
+### 状态色（`text-` / `bg-` / `border-` 前缀均可用）
+
+| className 后缀 | CSS 变量 | 含义 |
+|---------------|---------|------|
+| `*-danger-1` ~ `*-danger-8` | `--status-danger-1` ~ `8` | 危险/错误 |
+| `*-success-1` ~ `*-success-8` | `--status-success-1` ~ `8` | 成功 |
+| `*-warning-1` ~ `*-warning-8` | `--status-warning-1` ~ `8` | 警告 |
+| `*-info-1` ~ `*-info-8` | `--status-info-1` ~ `8` | 信息 |
+
+### 字号 `text-`（覆盖 Tailwind 默认值）
+
+| className | font-size / line-height |
+|-----------|------------------------|
+| `text-sm` | 12px / 18px |
+| `text-base` | 14px / 22px |
+| `text-lg` | 16px / 24px |
+| `text-xl` | 18px / 26px |
+| `text-xxl` | 20px / 28px |
+
+### 间距（spacing，以 4px 为单位）
+
+`p-1` = 4px，`p-2` = 8px，`p-4` = 16px，以此类推（`N × 4px`）。特殊值：`px` = 1px，`px2` = 2px，`px6` = 6px。
+
+### 导入方式
+
+`styled` 和 `createGlobalStyle` 统一从 `@umijs/max` 导入，**禁止**从 `styled-components` 直接导入：
+
+```typescript
+// ✅ 正确
+import { styled, createGlobalStyle } from '@umijs/max';
+
+// ❌ 错误
+import styled from 'styled-components';
+import { createGlobalStyle } from 'styled-components';
+```
+
+### 命名与 Props 约定
+
+- 样式组件命名使用 `PascalCase`，以 `Wrapper` / `Container` / `Styled` 等语义后缀结尾
+- 动态 Props 用 `$` 前缀以区分 HTML 原生属性（如 `$active`、`$navHeight`）
+- **禁止** BEM 命名约定（如 `page-user__header--active`）
+
+### 仅允许使用 styled-components 的场景
+
+| 场景 | 原因 |
+|------|------|
+| **多个动态 Props 联动**控制样式（≥2 个 prop 组合影响 ≥3 个 CSS 属性） | `classNames` 排列组合爆炸，styled 的模板函数更清晰 |
+| **`createGlobalStyle`** 覆盖第三方组件内部类名 | Tailwind 无法穿透 portal 内部 DOM（如 Bedrock Modal `.rock-modal`） |
+| **自定义 keyframe 动画** | Tailwind 内置动画有限，复杂 keyframe 需要 CSS 定义 |
+
+除上述三种场景外，**一律使用 Tailwind**。
+
+### 以下场景禁止使用 styled-components
+
+Tailwind 均可覆盖，无需 styled-components：
+
+| 场景 | Tailwind 写法 |
+|------|--------------|
+| 布局（flex / grid / 定位） | `className="flex items-center gap-2"` |
+| 间距（padding / margin） | `className="px-4 py-2 mt-3"` |
+| 尺寸（width / height） | `className="w-[316px] h-12"` |
+| 背景色 / 文字色 / 边框色 | `className="bg-[var(--bg-2)] text-[var(--text-color-1)]"` |
+| 字号 / 字重 / 行高 | `className="text-sm font-medium leading-relaxed"` |
+| 圆角 / 阴影 | `className="rounded-md shadow-sm"` |
+| hover / focus 状态 | `className="hover:bg-[var(--fill-4)]"` |
+| 条件类名（布尔切换） | `classNames('flex', { 'opacity-50': disabled })` |
+| 伪元素 | `className="before:content-[''] before:block before:w-2 before:h-2"` |
+| 嵌套子元素选择器 | `className="[&_img]:w-full [&_img]:h-full [&>div]:mt-2"` |
+| 自定义滚动条 | `className="[&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-[var(--fill-3)]"` |
+| 隐藏元素 | `className="hidden"` |
+
+### Tailwind 中使用 Bedrock CSS 变量
+
+项目 `tailwind.config.js` 已内置 Bedrock CSS 变量的快捷类名映射，**必须优先使用快捷类名**，避免冗余的 `[var(--xxx)]` 写法。仅当快捷类名未覆盖时才降级使用 `[var(--xxx)]` 任意值语法。
+
+```tsx
+// ✅ 最佳 — 使用内置快捷类名
+<div className="bg-2 text-color-1 border border-color-1">
+
+// ⚠️ 可接受 — 快捷类名未覆盖时降级用任意值
+<div className="bg-[var(--some-custom-var)]">
+
+// ❌ 错误 — 有快捷类名却写 [var()]
+<div className="bg-[var(--bg-2)] text-[var(--text-color-1)] border-[var(--border-color-1)]">
+
+// ❌ 错误 — 不要为此创建 styled-components
+const Panel = styled.div`background: var(--bg-2);`;
+```
+
+#### 快捷类名速查表
+
+| 类别 | Tailwind 类名 | 对应 CSS 变量 |
+|------|--------------|-------------|
+| 背景色 | `bg-1` ~ `bg-5` | `var(--bg-1)` ~ `var(--bg-5)` |
+| 背景填充 | `bg-fill-1` ~ `bg-fill-4` | `var(--fill-1)` ~ `var(--fill-4)` |
+| 背景主色 | `bg-primary-1` ~ `bg-primary-5` | `var(--primary-1)` ~ `var(--primary-5)` |
+| 文字色 | `text-color-1` ~ `text-color-4` | `var(--text-color-1)` ~ `var(--text-color-4)` |
+| 文字主色 | `text-primary-1` ~ `text-primary-5` | `var(--primary-1)` ~ `var(--primary-5)` |
+| 边框色 | `border-color-1` ~ `border-color-3` | `var(--border-color-1)` ~ `var(--border-color-3)` |
+| 边框填充 | `border-fill-1` ~ `border-fill-4` | `var(--fill-1)` ~ `var(--fill-4)` |
+| 边框危险色 | `border-danger` | `var(--status-danger-1)` |
+| 阴影 | `shadow-1` ~ `shadow-4` | `var(--box-shadow-1)` ~ `var(--box-shadow-4)` |
+| 状态色 | `text-status-danger-1` / `bg-status-success-3` 等 | `var(--status-{type}-{1~8})` |
+
+> 速查表来源：`tailwind.config.js` 中 `extend.backgroundColor` / `extend.textColor` / `extend.borderColor` / `extend.boxShadow` 的配置。
+
+## Less 使用约束
+
+Less 仅用于以下两类场景，禁止编写组件业务样式：
+
+```less
+// ✅ 允许：全局基础样式入口（src/styles/index.less）
+@import '@bedrock/components/base.css';             // 亮色主题变量
+@import '@bedrock/components/dark-base-switch.css'; // 暗色主题切换
+
+// ✅ 允许：全局重置样式
+* { box-sizing: border-box; }
+
+// ❌ 禁止：在 Less 中写组件样式
+.user-card { background: var(--bg-1); }             // 应该用 Tailwind 或 styled-components
+```
+
+## 主题色 CSS 变量（NON-NEGOTIABLE）
+
+CSS 变量由 `@bedrock/components` 注入。自定义样式**必须**使用这些 CSS 变量，**严格禁止**硬编码颜色值：
+
+| 分类 | 变量名 | 含义 |
+|------|--------|------|
+| 主色 | `--primary-1` ~ `--primary-5` | 主题色阶 |
+| 文本 | `--text-color-1` ~ `--text-color-4` | 文本层级 |
+| 背景 | `--bg-1` ~ `--bg-3` | 背景层级 |
+| 填充 | `--fill-1` ~ `--fill-4` | 填充层级 |
+| 边框 | `--border-color-1`、`--border-color-2` | 边框 |
+| 状态 | `--status-success-*`、`--status-danger-*`、`--status-warning-*` | 状态色 |
+| 透明通道 | `--color-absolute-t`、`--white-t`、`--black-t` | 用于 `rgba()` 组合 |
+
+透明度写法示例：
+```css
+background: rgba(var(--color-absolute-t), 0.4);
+```
+
+> `16px` → `1rem`（PostCSS pxtorem 自动转换），写 styled-components 时直接写 `px`，构建后自动转换，**无需手动写 `rem`**。
+
+## 设计稿颜色提取规范
+
+| 属性 | 含义 | 提取方式 |
+|------|------|----------|
+| `fill` | 背景色 | CSS `background-color` |
+| `stroke` | 边框色 | CSS `border-color` |
+| `background_blur` | 毛玻璃效果 | CSS `backdrop-filter: blur()` |
+| `shadow` | 阴影效果 | CSS `box-shadow` |
+| `cornerRadius` | 圆角 | CSS `border-radius` |
+
+**注意**：带有透明度的颜色需转换为 RGBA 格式。例如 `#13131c73` 中 `73` 是透明度（十六进制 0x73 ≈ 0.45）。
+</rule>

@@ -1,0 +1,97 @@
+---
+description: 项目的目录结构规范，定义了 src 目录下各目录的用途与约束（禁止新建非标准目录）。当需要确定代码应放在哪个目录时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 项目结构（NON-NEGOTIABLE）
+
+## 目录结构
+
+```
+src/
+├── apiHandles/         # 对 OpenApiServices 方法的二次封装（参数预处理等）
+├── assets/             # 字体、图标、静态图片等资源
+├── common/             # 公共配置（含 theme.ts 主题变量、阴影等）
+├── components/         # 可复用 UI 组件（含 BedrockComponentsProxy 代理层）
+├── hooks/              # 自定义 Hook
+├── layouts/            # 页面布局组件（含 layout.tsx）
+├── locales/            # 国际化资源文件（暂不需接入新功能）
+├── models/             # UmiJS useModel（全局共享状态 Hook）
+├── OpenApiServices/    # OpenAPI 自动生成的服务代码（禁止手工修改）
+├── pages/              # 路由页面（按功能模块划分）
+├── redux/              # Redux store 和 reducers
+├── services/           # 历史遗留的接口请求封装（pont-engine 生成，部分老业务）
+├── styles/             # 全局样式（index.less 入口、theme.less 主题变量）
+├── types/              # 全局类型声明（interfaces、DTO）
+├── utils/              # 工具函数（含 ajax.ts、events.ts、util.ts 等）
+├── app.tsx             # 运行时配置（UmiJS 规范）
+└── Performance.tsx     # withPM 高阶组件（组件级性能监控）
+```
+
+根目录：
+```
+routes.ts               # 路由表集中配置（在项目根目录，非 src 内）
+```
+
+## 结构约束（禁止在 src 下新建非标准目录）
+
+| 类型 | 目录 | 规范 |
+|------|------|------|
+| 接口封装 | `src/apiHandles/` | 对 OpenApiServices 方法的二次封装（参数预处理、字段映射等），文件名与接口方法一一对应 |
+| 公共配置 | `src/common/` | 项目级公共常量和配置（如 `theme.ts` 阴影/透明度变量） |
+| 全局状态 | `src/models/` | UmiJS useModel，每个文件默认导出一个 Hook，通过 `useModel('name')` 跨组件共享 |
+| Redux 状态 | `src/redux/` | Redux store 和 reducers，用于复杂全局状态 |
+| 全局样式 | `src/styles/` | `index.less`（全局样式入口）、`theme.less`（Bedrock 主题变量导入） |
+| 工具 | `src/utils/` | 核心文件：`ajax.ts`（底层请求，禁止业务直接调用）、`events.ts`（事件总线）、`util.ts`（通用工具）、`analysis.ts`（埋点）|
+| 类型声明 | `src/types/` | 每个业务域接口/DTO 定义 |
+| 组件 | `src/components/` | 每个组件独立目录，导出到 `index.ts` |
+| 路由页面 | `src/pages/` | 每个页面含 `index.tsx`，按功能模块划分 |
+| API 函数 | `src/OpenApiServices/` | **自动生成，禁止手工修改**，通过执行接口更新命令重新生成 |
+| 布局 | `src/layouts/` | 全局布局组件（含性能监控初始化） |
+
+## 路由目录内的组件放置规则
+
+页面专用组件放在 `src/pages/<page-name>/components/` 目录：
+
+```
+src/pages/<page-name>/
+  ├─ components/           # 仅供当前页面使用的子组件
+  │   └─ XxxCard/
+  │       └─ index.tsx
+  ├─ hooks.ts              # 页面级自定义 hooks（可选）
+  ├─ usePresenter.tsx      # 页面逻辑抽取（可选，复杂页面推荐）
+  ├─ reducer/              # 页面级 useReducer（可选）
+  └─ index.tsx
+```
+
+**判断标准**：
+- 通用组件：多处复用、业务无关 → `src/components/`
+- 页面级组件：仅单页使用 → `src/pages/<page>/components/`
+
+**约束**：`src/components/` 只存放通用组件，禁止将仅单页使用的组件放入。
+
+## 请求调用规范（NON-NEGOTIABLE）
+
+| 方式 | 用途 | 备注 |
+|------|------|------|
+| `src/OpenApiServices/` | **主要方式**，自动生成的服务代码 | **禁止手工修改**，执行接口更新命令重新生成 |
+| `src/services/` | 历史遗留（pont-engine 生成），部分老业务 | 待清理，新功能不应新增此目录下的文件 |
+| `src/utils/ajax.ts` | 底层封装 | **业务代码禁止直接调用**，仅供 OpenApiServices 内部使用 |
+
+## Mock 数据策略
+
+当后端接口未完成时：
+
+### 原则
+
+1. 接口文件：在 `src/OpenApiServices/` 对应方法中用本地数据临时替代（或在调用处用 mock 常量）
+2. 类型定义：使用 `src/types/<feature>.ts`（单文件），不创建目录
+3. 优先级：UI 还原度优先于功能完整
+
+### 禁止
+
+- 禁止创建复杂的 mock 数据结构
+- 禁止接口未完成时创建独立 Store
+- 禁止预留过多扩展字段
+</rule>

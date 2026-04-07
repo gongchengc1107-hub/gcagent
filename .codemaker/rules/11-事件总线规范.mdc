@@ -1,0 +1,99 @@
+---
+description: 项目内组件间通信规范，使用 Node.js EventEmitter 事件总线（src/utils/events.ts）。当需要跨组件通信、列表刷新或非父子组件数据同步时读取此规则。
+alwaysApply: false
+---
+
+<rule>
+# 事件总线规范
+
+## 方案说明
+
+项目使用 **Node.js 内置 `EventEmitter`**（`import EventEmitter from 'events'`）作为事件总线，封装在 `src/utils/events.ts`，用于**跨层级、非父子组件**之间的解耦通信（如：弹层关闭后触发列表刷新）。
+
+**禁止**用 `window.dispatchEvent` / 自定义 DOM 事件 / `mitt` 替代此机制。
+
+---
+
+## 事件常量（src/utils/events.ts）
+
+所有事件 key 均定义为具名常量，**禁止**内联字符串作为事件名：
+
+| 常量 | 含义 |
+|------|------|
+| `REFRESH_CATEGORY` | 刷新分类列表 |
+| `REFRESH_ANNOUNCEMENT_LIST` | 刷新公告列表 |
+| `GET_ASSET_DETAIL` | 获取素材详情 |
+| `OPEN_ALL_REPO_DETAIL` | 打开全仓库详情 |
+| `CLOSE_DETAIL_MODLE` | 关闭详情模块 |
+| `UPDATE_SELECTED_CATEGORY` | 更新已选中的分类 |
+| `UPDATE_TAG_SUCCESS` | 标签更新成功 |
+| `REFRESH_LIST` | 刷新列表 |
+| `PERSON_CENTER_NAV_BACKGROUND` | 个人中心导航背景变化 |
+| `REFRESH_LIST_WHEN_SEARCH_KEYWORD` | 搜索关键词变化时刷新列表 |
+| `CHANGE_ALL_REPO_VISIBLE` | 切换全仓库可见状态 |
+| `GLOBAL_SEARCH_EVENT` | 全局搜索事件 |
+| `FILE_PREVIEW_FULL_SCREEN_CHANGE` | 文件预览全屏状态变化 |
+| `LAYOUT_CONTENT_SCROLL_DISABLED` | 禁用布局内容区滚动 |
+| `RESET_MENU` | 重置菜单状态 |
+| `RESET_PROJECT_TAG` | 重置项目标签 |
+| `RESET_STANDARD_CATEGORY` | 重置标准分类 |
+| `GET_ELEMENT_DISABLED_LAYOUT_SCROLL` | 获取元素禁用布局滚动 |
+| `LAYOUT_CONTENT_SCROLL` | 布局内容区滚动事件 |
+| `REFRESH_CUSTOM_FIELD` | 刷新自定义字段 |
+| `CHANGE_SUPPLIER_CLEAR_DATA` | 切换供应商时清除数据 |
+| `ADD_QUESTION` | 新增问答 |
+| `REFRESH_ASSET_DETAIL` | 刷新素材详情 |
+
+---
+
+## 使用规范
+
+### 发送事件（emit）
+```typescript
+import { emitter, REFRESH_LIST } from '@/utils/events';
+
+emitter.emit(REFRESH_LIST);                                  // 无 payload
+emitter.emit(REFRESH_ASSET_DETAIL, { assetId: 123 });        // 带 payload
+```
+
+### 在组件中监听事件（推荐用 useEffect + on/off）
+```typescript
+import { useEffect } from 'react';
+import { useMemoizedFn } from 'ahooks';
+import { emitter, REFRESH_LIST } from '@/utils/events';
+
+const MyList = () => {
+  const handleRefresh = useMemoizedFn(() => {
+    run();  // 刷新列表
+  });
+
+  useEffect(() => {
+    emitter.on(REFRESH_LIST, handleRefresh);
+    return () => {
+      emitter.off(REFRESH_LIST, handleRefresh);
+    };
+  }, []);
+};
+```
+
+### 在非组件环境监听
+
+```typescript
+import { emitter, REFRESH_LIST } from '@/utils/events';
+
+emitter.on(REFRESH_LIST, handler);
+
+// 必须在合适时机手动移除
+emitter.off(REFRESH_LIST, handler);
+```
+
+---
+
+## 新增事件
+
+新增业务事件时，**必须**：
+
+1. 在 `src/utils/events.ts` 中定义具名常量（`export const XXX = 'XXX'`）
+2. 添加中文注释说明事件用途
+3. **禁止**复用已有事件名传递不相关数据
+</rule>

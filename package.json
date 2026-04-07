@@ -1,0 +1,45 @@
+{
+  "name": "codemaker-dashboard",
+  "version": "1.0.0",
+  "description": "Codemaker AI Assistant Console",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "build:mac": "npm run build && electron-builder --mac",
+    "pack": "npm run build && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "antd": "^5.29.3",
+    "highlight.js": "^11.11.1",
+    "node-pty": "^1.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.30.3",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^5.2.0",
+    "autoprefixer": "^10.4.27",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^6.0.2"
+  }
+}
