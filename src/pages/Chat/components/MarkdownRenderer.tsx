@@ -4,6 +4,16 @@ import type { ReactElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import type { PreviewFileLanguage } from '@/types'
+import FileCard from './FileCard'
+
+/** 可渲染为文件卡片的语言集合 */
+const FILE_CARD_LANGUAGES: Record<string, PreviewFileLanguage> = {
+  json: 'json',
+  markdown: 'markdown',
+  md: 'markdown',
+  html: 'html'
+}
 
 /** 从 ReactNode 树中递归提取纯文本（用于复制功能） */
 function extractTextFromChildren(node: ReactNode): string {
@@ -118,19 +128,30 @@ interface MarkdownRendererProps {
    * 点击时提取 li 的纯文本内容，调用此回调（等同用户发送该文本）。
    */
   onListItemClick?: (text: string) => void
+  /**
+   * 所属消息 ID，用于为 FileCard 生成唯一文件标识。
+   * 不传时文件卡片功能降级为普通代码块。
+   */
+  messageId?: string
 }
 
-const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onListItemClick }) => {
+const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onListItemClick, messageId }) => {
   // 每次从流式（true）→非流式（false）切换时递增，强制 ReactMarkdown 重新挂载，
   // 避免残留虚拟 DOM 状态导致渲染异常。
   // 注意：使用严格等于避免 undefined 误触发（isStreaming?: boolean 可能为 undefined）
   const renderKeyRef = useRef(0)
   const prevIsStreamingRef = useRef<boolean | undefined>(isStreaming)
 
+  // 用于追踪文件卡片代码块序号（每次渲染重置）
+  const blockIndexRef = useRef(0)
+
   if (prevIsStreamingRef.current === true && isStreaming === false) {
     renderKeyRef.current += 1
   }
   prevIsStreamingRef.current = isStreaming
+
+  // 每次渲染前重置代码块计数器
+  blockIndexRef.current = 0
 
   const components = useMemo(
     () => ({
@@ -138,6 +159,7 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onL
       code({ className, children, ...props }: any) {
         const match = /language-(\w+)/.exec(className || '')
         const isInline = !match && !className
+        const lang = match?.[1] || ''
 
         if (isInline) {
           return (
@@ -154,8 +176,24 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onL
           )
         }
 
+        // 检测是否为文件卡片类型（json/markdown/md/html），
+        // 仅在非流式模式且有 messageId 时渲染为 FileCard
+        const fileLanguage = FILE_CARD_LANGUAGES[lang]
+        if (fileLanguage && messageId && !isStreaming) {
+          const idx = blockIndexRef.current++
+          return (
+            <FileCard
+              language={fileLanguage}
+              messageId={messageId}
+              blockIndex={idx}
+            >
+              {children}
+            </FileCard>
+          )
+        }
+
         return (
-          <CodeBlock language={match?.[1] || ''}>
+          <CodeBlock language={lang}>
             {children}
           </CodeBlock>
         )
@@ -283,7 +321,7 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onL
         return <li className="leading-relaxed">{children as ReactNode}</li>
       }
     }),
-    [onListItemClick]
+    [onListItemClick, messageId, isStreaming]
   )
 
   // 流式输出中：使用轻量 Markdown 渲染（不带语法高亮，避��性能损耗）

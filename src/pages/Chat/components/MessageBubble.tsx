@@ -141,7 +141,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
           ) : isUser ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
           ) : (
-            <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} onListItemClick={onQuickAction} />
+            <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} onListItemClick={onQuickAction} messageId={message.id} />
           )}
         </div>
 

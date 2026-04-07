@@ -122,6 +122,25 @@ export interface ImageAttachment {
   size: number // bytes
 }
 
+/** 可预览的文件类型 */
+export type PreviewFileLanguage = 'json' | 'markdown' | 'html'
+
+/** 侧边栏预览文件 */
+export interface PreviewFile {
+  /** 唯一标识（messageId-codeBlockIndex） */
+  id: string
+  /** 推断的文件名（如 "response.json"） */
+  fileName: string
+  /** 文件语言/类型 */
+  language: PreviewFileLanguage
+  /** 文件原始内容 */
+  content: string
+  /** 编辑后的内容（未保存时暂存） */
+  editedContent?: string
+  /** 来源消息 ID */
+  sourceMessageId: string
+}
+
 /** 连接状态 */
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 

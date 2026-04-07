@@ -6,6 +6,7 @@ import MessageList from './components/MessageList'
 import MessageInput from './components/MessageInput'
 import SearchModal from './components/SearchModal'
 import ConnectionStatusBar from './components/ConnectionStatusBar'
+import FilePreviewPanel, { FilePreviewPanelCollapsed } from './components/FilePreviewPanel'
 
 const ChatPage: FC = () => {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -34,9 +35,9 @@ const ChatPage: FC = () => {
       {/* 左侧会话列表 */}
       <SessionList onOpenSearch={() => setSearchOpen(true)} />
 
-      {/* 右侧对话面板 */}
+      {/* 中间对话面板 */}
       <div
-        className="flex flex-1 flex-col"
+        className="flex min-w-0 flex-1 flex-col"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
         {/* 顶部标题栏 */}
@@ -61,6 +62,10 @@ const ChatPage: FC = () => {
         {/* 底部输入区 */}
         {currentSessionId && <MessageInput />}
       </div>
+
+      {/* 右侧文件预览面板 */}
+      <FilePreviewPanel />
+      <FilePreviewPanelCollapsed />
 
       {/* 搜索弹窗 */}
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />

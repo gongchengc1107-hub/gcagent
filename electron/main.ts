@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, session } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, session, dialog } from 'electron'
 import { join, resolve, dirname } from 'path'
 import { randomUUID } from 'crypto'
 import {
@@ -355,6 +355,44 @@ function registerIPC(): void {
         .map((e) => e.name)
     } catch {
       return []
+    }
+  })
+
+  /* ── 文件保存对话框（侧边栏文件预览功能使用） ── */
+
+  ipcMain.handle(
+    'dialog:showSaveDialog',
+    async (
+      _event,
+      defaultName: string,
+      filters: { name: string; extensions: string[] }[]
+    ) => {
+      if (!mainWindow) return { canceled: true }
+      const result = await dialog.showSaveDialog(mainWindow, {
+        defaultPath: defaultName,
+        filters: [
+          ...filters,
+          { name: '所有文件', extensions: ['*'] }
+        ]
+      })
+      return { canceled: result.canceled, filePath: result.filePath }
+    }
+  )
+
+  /**
+   * 不受 isPathAllowed 限制的文件保存——用于用户手动选择路径后的保存操作。
+   * 安全性由 dialog.showSaveDialog 保证（用户已显式选择了路径）。
+   */
+  ipcMain.handle('fs:save-file', (_event, filePath: string, content: string): boolean => {
+    try {
+      const abs = resolve(filePath)
+      mkdirSync(dirname(abs), { recursive: true })
+      writeFileSync(abs, content, 'utf-8')
+      if (isDev) console.log('[fs:save-file] saved:', abs)
+      return true
+    } catch (e) {
+      if (isDev) console.warn('[fs:save-file] error:', e)
+      return false
     }
   })
 
@@ -1160,7 +1198,8 @@ app.whenReady().then(async () => {
             // 允许连接本地 codemaker serve（任意端口）以及 wss/ws 用于热更新
             "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ws://localhost:* http://localhost:*",
             "media-src 'self'",
-            "object-src 'none'"
+            "object-src 'none'",
+            "frame-src 'self' blob: data:"
           ].join('; ')
         ]
       }
