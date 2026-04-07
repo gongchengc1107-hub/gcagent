@@ -32,8 +32,10 @@ export interface SendOptions {
 export interface UseSendMessageReturn {
   /** 发起一次 AI 对话请求 */
   sendMessage: (options: SendOptions) => void
-  /** 停止当前流式生成 */
-  stopGeneration: () => void
+  /** 停止当前流式生成（可指定 sessionId，默认当前会话） */
+  stopGeneration: (targetSessionId?: string) => void
+  /** 当前会话是否正在流式生成（响应式） */
+  isStreaming: boolean
 }
 
 export function useSendMessage(): UseSendMessageReturn {
@@ -45,6 +47,12 @@ export function useSendMessage(): UseSendMessageReturn {
   } = useChatStore()
 
   const { agents } = useAgentStore()
+
+  // 响应式读取当前会话的 streaming 状态
+  const currentSessionId = useChatStore((s) => s.currentSessionId)
+  const isStreaming = useChatStore((s) =>
+    currentSessionId ? (s.streamingSessionIds[currentSessionId] ?? false) : false
+  )
 
   const sendMessage = useCallback(
     ({ content, sessionId, messages, agentId, images, onQuestion }: SendOptions) => {
@@ -62,7 +70,7 @@ export function useSendMessage(): UseSendMessageReturn {
         isStreaming: true,
         createdAt: Date.now()
       })
-      setIsStreaming(true)
+      setIsStreaming(sessionId, true)
 
       // 2. 找到当前 agent，取 backendName 传给 serve（真实调用）
       //    同时保留 systemPrompt 作为无 backendName 时的降级描述
@@ -95,8 +103,8 @@ export function useSendMessage(): UseSendMessageReturn {
           updateMessage(sessionId, aiMessageId, accumulated, { isStreaming: true })
         },
         onComplete: () => {
-          setIsStreaming(false)
-          setStreamCleanup(null)
+          setIsStreaming(sessionId, false)
+          setStreamCleanup(sessionId, null)
           // 最终写入 isStreaming: false，清除气泡的 loading 状态
           const msgs = useChatStore.getState().messages[sessionId] || []
           const msg = msgs.find((m) => m.id === aiMessageId)
@@ -139,8 +147,8 @@ export function useSendMessage(): UseSendMessageReturn {
           }
         },
         onError: (err) => {
-          setIsStreaming(false)
-          setStreamCleanup(null)
+          setIsStreaming(sessionId, false)
+          setStreamCleanup(sessionId, null)
           const errMsg = err.message.includes('HTTP 401')
             ? '认证失败，请重新登录 Codemaker'
             : `请求失败：${err.message}`
@@ -149,29 +157,30 @@ export function useSendMessage(): UseSendMessageReturn {
         }
       })
 
-      setStreamCleanup(() => cleanup)
+      setStreamCleanup(sessionId, () => cleanup)
     },
     [agents, addMessage, updateMessage, setIsStreaming, setStreamCleanup]
   )
 
-  const stopGeneration = useCallback(() => {
+  const stopGeneration = useCallback((targetSessionId?: string) => {
+    const state = useChatStore.getState()
+    const sessionId = targetSessionId ?? state.currentSessionId
+    if (!sessionId) return
+
     // 用 getState() 读取最新 streamCleanup，避免 stale closure 问题
-    const cleanup = useChatStore.getState().streamCleanup
+    const cleanup = state.streamCleanups[sessionId]
     cleanup?.()
-    getProvider().stopGeneration()
-    setIsStreaming(false)
-    setStreamCleanup(null)
+    // 只清理指定 session 的状态，不调用 sseManager.abortAll()
+    setIsStreaming(sessionId, false)
+    setStreamCleanup(sessionId, null)
     // 找到正在流式的消息，重置 isStreaming：
     // 避免停止生成后（尤其在 content 为空的等待阶段），loading 动画永久卡住
-    const { currentSessionId, messages } = useChatStore.getState()
-    if (currentSessionId) {
-      const sessionMessages = messages[currentSessionId] || []
-      const streamingMsg = sessionMessages.find((m) => m.isStreaming)
-      if (streamingMsg) {
-        updateMessage(currentSessionId, streamingMsg.id, streamingMsg.content, { isStreaming: false })
-      }
+    const sessionMessages = state.messages[sessionId] || []
+    const streamingMsg = sessionMessages.find((m) => m.isStreaming)
+    if (streamingMsg) {
+      updateMessage(sessionId, streamingMsg.id, streamingMsg.content, { isStreaming: false })
     }
   }, [setIsStreaming, setStreamCleanup, updateMessage])
 
-  return { sendMessage, stopGeneration }
+  return { sendMessage, stopGeneration, isStreaming }
 }

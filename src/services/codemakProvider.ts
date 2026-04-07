@@ -441,18 +441,20 @@ export async function warmUpProvider(port: number): Promise<void> {
 
 /**
  * 模型切换时：
- * 1. 清空全部 sessionMap 映射（确保下次对话使用新 session）
- * 2. 中止所有正在进行的 SSE 流（切换模型时不应继续以旧模型接收内容）
+ * 清空指定会话（或全部）的 sessionMap 映射，确保下次对话使用新 session。
+ * 不再调用 sseManager.abortAll()，避免影响其他会话的流式输出。
  *
  * 由 useModelStore.setCurrentModel 调用。
  */
-export function clearSessionMapOnModelChange(): void {
+export function clearSessionMapOnModelChange(currentAppSessionId?: string): void {
   if (import.meta.env.DEV) {
-    console.log('[CodemakProvider] model changed, clearing sessionMap (entries:', sessionMap.size, ')')
+    console.log('[CodemakProvider] model changed, clearing sessionMap (entries:', sessionMap.size, ') targetSession:', currentAppSessionId ?? 'all')
   }
-  sessionMap.clear()
-  // 同时中止所有活跃流，防止旧模型的回复继续写入
-  sseManager.abortAll()
+  if (currentAppSessionId) {
+    sessionMap.delete(currentAppSessionId)
+  } else {
+    sessionMap.clear()
+  }
 }
 
 // ─── CodemakProvider 实现 ─────────────────────────────────────────────────────

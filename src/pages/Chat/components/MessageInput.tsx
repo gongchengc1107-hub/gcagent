@@ -102,7 +102,6 @@ const MessageInput: FC = () => {
     currentSessionId,
     sessions,
     addMessage,
-    isStreaming,
     saveDraft,
     getDraft,
     clearDraft,
@@ -116,7 +115,7 @@ const MessageInput: FC = () => {
   const { agents } = useAgentStore()
   const { skills } = useSkillStore()
   const { availableModels, currentModel, loading: modelsLoading, setCurrentModel } = useModelStore()
-  const { sendMessage, stopGeneration } = useSendMessage()
+  const { sendMessage, stopGeneration, isStreaming } = useSendMessage()
 
   const currentSession = sessions.find((s) => s.id === currentSessionId)
   /** 当前会话的 pending question 队列 */

@@ -22,7 +22,6 @@ const MessageList: FC = () => {
     addMessage,
     deleteMessagesAfter,
     deleteLastMessage,
-    isStreaming,
     pushPendingQuestion
   } = useChatStore()
 
@@ -31,8 +30,8 @@ const MessageList: FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const currentMessages = currentSessionId ? (messages[currentSessionId] || []) : []
 
-  // 从 useSendMessage 获取统一的真实发送能力
-  const { sendMessage } = useSendMessage()
+  // 从 useSendMessage 获取统一的真实发送能力 + 当前会话的 streaming 状态
+  const { sendMessage, isStreaming } = useSendMessage()
 
   // 自动滚动到底部
   useEffect(() => {

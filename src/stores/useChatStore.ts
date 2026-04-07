@@ -8,8 +8,8 @@ interface ChatState {
   sessions: ChatSession[]
   currentSessionId: string | null
   messages: Record<string, ChatMessage[]>
-  isStreaming: boolean
-  streamCleanup: (() => void) | null
+  streamingSessionIds: Record<string, boolean>
+  streamCleanups: Record<string, () => void>
   connectionStatus: ConnectionStatus
   drafts: Record<string, string>
   /**
@@ -32,8 +32,8 @@ interface ChatState {
   upsertToolCall: (sessionId: string, messageId: string, toolCall: ToolCall) => void
   deleteMessagesAfter: (sessionId: string, messageId: string) => void
   deleteLastMessage: (sessionId: string) => void
-  setIsStreaming: (streaming: boolean) => void
-  setStreamCleanup: (cleanup: (() => void) | null) => void
+  setIsStreaming: (sessionId: string, streaming: boolean) => void
+  setStreamCleanup: (sessionId: string, cleanup: (() => void) | null) => void
   setConnectionStatus: (status: ConnectionStatus) => void
   saveDraft: (sessionId: string, content: string) => void
   getDraft: (sessionId: string) => string
@@ -54,8 +54,8 @@ export const useChatStore = create<ChatState>()(
       sessions: [],
       currentSessionId: null,
       messages: {},
-      isStreaming: false,
-      streamCleanup: null,
+      streamingSessionIds: {},
+      streamCleanups: {},
       connectionStatus: 'connected' as ConnectionStatus,
       drafts: {},
       pendingQuestions: {},
@@ -81,8 +81,14 @@ export const useChatStore = create<ChatState>()(
       },
 
       deleteSession: (id: string) => {
+        // 先调用该 session 的 cleanup 函数（如果存在），中止流式生成
+        const cleanup = get().streamCleanups[id]
+        cleanup?.()
+
         set((state) => {
           const { [id]: _removed, ...restMessages } = state.messages
+          const { [id]: _removedStreaming, ...restStreamingIds } = state.streamingSessionIds
+          const { [id]: _removedCleanup, ...restCleanups } = state.streamCleanups
           const remaining = state.sessions.filter((s) => s.id !== id)
           return {
             sessions: remaining,
@@ -90,7 +96,9 @@ export const useChatStore = create<ChatState>()(
               state.currentSessionId === id
                 ? (remaining[0]?.id ?? null)
                 : state.currentSessionId,
-            messages: restMessages
+            messages: restMessages,
+            streamingSessionIds: restStreamingIds,
+            streamCleanups: restCleanups
           }
         })
       },
@@ -190,12 +198,24 @@ export const useChatStore = create<ChatState>()(
         })
       },
 
-      setIsStreaming: (streaming: boolean) => {
-        set({ isStreaming: streaming })
+      setIsStreaming: (sessionId: string, streaming: boolean) => {
+        set((state) => ({
+          streamingSessionIds: {
+            ...state.streamingSessionIds,
+            [sessionId]: streaming
+          }
+        }))
       },
 
-      setStreamCleanup: (cleanup: (() => void) | null) => {
-        set({ streamCleanup: cleanup })
+      setStreamCleanup: (sessionId: string, cleanup: (() => void) | null) => {
+        set((state) => {
+          if (cleanup) {
+            return { streamCleanups: { ...state.streamCleanups, [sessionId]: cleanup } }
+          } else {
+            const { [sessionId]: _, ...rest } = state.streamCleanups
+            return { streamCleanups: rest }
+          }
+        })
       },
 
       setConnectionStatus: (status: ConnectionStatus) => {
@@ -287,7 +307,7 @@ export const useChatStore = create<ChatState>()(
           )
         }
         state.messages = cleaned
-        state.isStreaming = false
+        state.streamingSessionIds = {}
       }
     }
   )
