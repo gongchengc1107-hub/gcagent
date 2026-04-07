@@ -352,6 +352,27 @@ function registerIPC(): void {
     }
   })
 
+  /**
+   * 不受 isPathAllowed 限制的文件读取——用于预览 AI agent 写入的文件。
+   * 仅允许读取操作（只读），且仅限 .md / .json / .html 扩展名。
+   */
+  ipcMain.handle('fs:read-file-unrestricted', (_event, p: string): string => {
+    if (p.includes('..')) return ''
+    const allowed = /\.(md|markdown|json|html|htm)$/i
+    if (!allowed.test(p)) {
+      if (isDev) console.warn('[fs:read-file-unrestricted] extension not allowed:', p)
+      return ''
+    }
+    const abs = resolve(p)
+    if (!existsSync(abs)) return ''
+    try {
+      return readFileSync(abs, 'utf-8')
+    } catch (e) {
+      if (isDev) console.warn('[fs:read-file-unrestricted] error:', e)
+      return ''
+    }
+  })
+
   ipcMain.handle('fs:list-dir', (_event, dir: string): string[] => {
     if (!isPathAllowed(dir)) {
       if (isDev) console.warn('[fs:list-dir] path not allowed:', dir)

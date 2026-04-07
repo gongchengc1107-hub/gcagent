@@ -127,9 +127,9 @@ export type PreviewFileLanguage = 'json' | 'markdown' | 'html'
 
 /** 侧边栏预览文件 */
 export interface PreviewFile {
-  /** 唯一标识（messageId-codeBlockIndex） */
+  /** 唯一标识（messageId-codeBlockIndex 或 filePath hash） */
   id: string
-  /** 推断的文件名（如 "response.json"） */
+  /** 文件名（如 "response.json" 或从路径提取的文件名） */
   fileName: string
   /** 文件语言/类型 */
   language: PreviewFileLanguage
@@ -139,6 +139,8 @@ export interface PreviewFile {
   editedContent?: string
   /** 来源消息 ID */
   sourceMessageId: string
+  /** 磁盘文件的绝对路径（从消息文本中检测到的） */
+  filePath?: string
 }
 
 /** 连接状态 */

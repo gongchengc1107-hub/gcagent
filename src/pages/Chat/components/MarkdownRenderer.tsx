@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import type { PreviewFileLanguage } from '@/types'
 import FileCard from './FileCard'
+import FilePathCard from './FilePathCard'
 
 /** 可渲染为文件卡片的语言集合 */
 const FILE_CARD_LANGUAGES: Record<string, PreviewFileLanguage> = {
@@ -14,6 +15,16 @@ const FILE_CARD_LANGUAGES: Record<string, PreviewFileLanguage> = {
   md: 'markdown',
   html: 'html'
 }
+
+/**
+ * 匹配消息文本中的磁盘文件路径。
+ * 支持格式：
+ *   /Users/xxx/file.md
+ *   /home/xxx/file.json
+ *   ~/xxx/file.html
+ *   以及被反引号包裹的路径
+ */
+const FILE_PATH_REGEX = /(?:^|\s|`)((?:\/[\w.\-\u4e00-\u9fa5]+)+\.(?:md|json|html|htm))(?:\s|$|`|。|，|,|\.)/
 
 /** 从 ReactNode 树中递归提取纯文本（用于复制功能） */
 function extractTextFromChildren(node: ReactNode): string {
@@ -162,6 +173,17 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onL
         const lang = match?.[1] || ''
 
         if (isInline) {
+          // 检测内联代码是否为文件路径
+          const text = typeof children === 'string' ? children : extractTextFromChildren(children)
+          const trimmed = text.trim()
+          if (
+            messageId &&
+            !isStreaming &&
+            /^\/[\w.\-\/\u4e00-\u9fa5]+\.(md|json|html|htm)$/i.test(trimmed)
+          ) {
+            return <FilePathCard filePath={trimmed} messageId={messageId} />
+          }
+
           return (
             <code
               className="rounded px-1.5 py-0.5 text-sm"
@@ -288,10 +310,22 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onL
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       p({ children }: any) {
+        // 从段落纯文本中检测文件路径
+        const text = extractTextFromChildren(children)
+        const pathMatch = messageId && !isStreaming
+          ? FILE_PATH_REGEX.exec(text)
+          : null
+        const detectedPath = pathMatch?.[1]
+
         return (
-          <p className="my-2 leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-            {children}
-          </p>
+          <>
+            <p className="my-2 leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+              {children}
+            </p>
+            {detectedPath && messageId && (
+              <FilePathCard filePath={detectedPath} messageId={messageId} />
+            )}
+          </>
         )
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

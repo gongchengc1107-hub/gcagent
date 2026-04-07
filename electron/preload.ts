@@ -37,6 +37,7 @@ const INVOKE_CHANNELS = [
   'fs:delete-file',
   'fs:list-dir',
   'fs:save-file',
+  'fs:read-file-unrestricted',
   /* 对话框 */
   'dialog:showSaveDialog',
   /* MCP */
