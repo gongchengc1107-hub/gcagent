@@ -602,39 +602,6 @@ const MessageInput: FC = () => {
 
       {/* 输入区 */}
       <div className="relative">
-        {/* DEV ONLY: 测试 question 弹出（多选/单选） */}
-        {import.meta.env.DEV && currentSessionId && !pendingQuestion && (
-          <div className="absolute -top-8 right-0 flex gap-1 opacity-30 hover:opacity-100 transition-opacity">
-            <button
-              className="rounded bg-gray-600 px-1.5 py-0.5 text-[10px] text-white"
-              onClick={() => pushPendingQuestion(currentSessionId, {
-                id: `que_test_single_${Date.now()}`,
-                sessionID: 'test',
-                questions: [{ question: '你喜欢哪种语言？', header: '单选测试', options: [
-                  { label: 'Python', description: '简洁易读' },
-                  { label: 'JavaScript', description: '全栈通吃' },
-                  { label: 'Go', description: '高性能并发' },
-                ]}],
-                tool: { messageID: 'test', callID: 'test' }
-              })}
-            >单选</button>
-            <button
-              className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] text-white"
-              onClick={() => pushPendingQuestion(currentSessionId, {
-                id: `que_test_multi_${Date.now()}`,
-                sessionID: 'test',
-                questions: [{ question: '你需要哪些功能模块？', header: '多选测试', multiple: true, options: [
-                  { label: '用户系统', description: '注册/登录/会员' },
-                  { label: '商品管理', description: 'SPU/SKU 管理' },
-                  { label: '购物车', description: '加购/结算' },
-                  { label: '支付系统', description: '微信/支付宝' },
-                  { label: '订单管理', description: '状态流转/退款' },
-                ]}],
-                tool: { messageID: 'test', callID: 'test' }
-              })}
-            >多选</button>
-          </div>
-        )}
         {/* AI agent 提问浮层（question.asked 事件触发） */}
         {pendingQuestion && (
           <QuestionDialog
