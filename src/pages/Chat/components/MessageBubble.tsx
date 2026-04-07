@@ -18,13 +18,16 @@ interface MessageBubbleProps {
   onResend: (messageId: string, content: string) => void
   onEditResend: (messageId: string, newContent: string) => void
   onRegenerate: (messageId: string) => void
+  /** 列表项点击回调（仅对最后一条 assistant 消息启用） */
+  onQuickAction?: (text: string) => void
 }
 
 const MessageBubble: FC<MessageBubbleProps> = ({
   message,
   onResend,
   onEditResend,
-  onRegenerate
+  onRegenerate,
+  onQuickAction
 }) => {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -138,7 +141,7 @@ const MessageBubble: FC<MessageBubbleProps> = ({
           ) : isUser ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
           ) : (
-            <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} />
+            <MarkdownRenderer content={message.content} isStreaming={message.isStreaming} onListItemClick={onQuickAction} />
           )}
         </div>
 

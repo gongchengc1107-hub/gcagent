@@ -231,15 +231,23 @@ const MessageList: FC = () => {
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl py-4">
-        {currentMessages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            message={msg}
-            onResend={handleResend}
-            onEditResend={handleEditResend}
-            onRegenerate={handleRegenerate}
-          />
-        ))}
+        {currentMessages.map((msg, idx) => {
+          // 最后一条已完成的 assistant 消息启用列表项点击
+          const isLastAssistant =
+            msg.role === 'assistant' &&
+            !msg.isStreaming &&
+            idx === currentMessages.length - 1
+          return (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              onResend={handleResend}
+              onEditResend={handleEditResend}
+              onRegenerate={handleRegenerate}
+              onQuickAction={isLastAssistant ? handleQuickAction : undefined}
+            />
+          )
+        })}
       </div>
       {/* AI 快捷选项按钮 */}
       {quickActions.length > 0 && (

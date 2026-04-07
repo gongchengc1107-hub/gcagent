@@ -113,9 +113,14 @@ interface MarkdownRendererProps {
    * CodeBlock 已改为无 Hook 纯组件，数量变化不再触发 Rules of Hooks 崩溃。
    */
   isStreaming?: boolean
+  /**
+   * 列表项点击回调。传入后，Markdown 中的 li 变为可点击选项。
+   * 点击时提取 li 的纯文本内容，调用此回调（等同用户发送该文本）。
+   */
+  onListItemClick?: (text: string) => void
 }
 
-const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming }) => {
+const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming, onListItemClick }) => {
   // 每次从流式（true）→非流式（false）切换时递增，强制 ReactMarkdown 重新挂载，
   // 避免残留虚拟 DOM 状态导致渲染异常。
   // 注意：使用严格等于避免 undefined 误触发（isStreaming?: boolean 可能为 undefined）
@@ -253,10 +258,32 @@ const MarkdownRenderer: FC<MarkdownRendererProps> = ({ content, isStreaming }) =
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       li({ children }: any) {
+        if (onListItemClick) {
+          return (
+            <li
+              className="cursor-pointer rounded-md px-1 py-0.5 leading-relaxed transition-colors"
+              style={{ color: 'var(--text-primary)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--accent-primary)10'
+                e.currentTarget.style.color = 'var(--accent-primary)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.color = 'var(--text-primary)'
+              }}
+              onClick={() => {
+                const text = extractTextFromChildren(children).trim()
+                if (text) onListItemClick(text)
+              }}
+            >
+              {children as ReactNode}
+            </li>
+          )
+        }
         return <li className="leading-relaxed">{children as ReactNode}</li>
       }
     }),
-    []
+    [onListItemClick]
   )
 
   // 流式输出中：使用轻量 Markdown 渲染（不带语法高亮，避��性能损耗）
