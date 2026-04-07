@@ -53,7 +53,12 @@ export interface ChatProvider {
   stopGeneration(): void
   /**
    * 回答 AI agent 的提问
-   * 调用 POST /session/{sessionID}/question/{questionId}
+   * OpenCode 协议：POST /question/{requestID}/reply
    */
   answerQuestion(sessionID: string, questionId: string, answer: string): Promise<void>
+  /**
+   * 拒绝/取消 AI agent 的提问
+   * OpenCode 协议：POST /question/{requestID}/reject
+   */
+  rejectQuestion(questionId: string): Promise<void>
 }

@@ -611,8 +611,8 @@ const MessageInput: FC = () => {
             questionTotal={pendingQuestionTotal}
             onSubmit={handleQuestionSubmit}
             onCancel={() => {
-              // 发送 cancel 通知 CLI 取消，然后清空整个队列
-              getProvider().answerQuestion(pendingQuestion.sessionID, pendingQuestion.id, 'cancel').catch(() => {})
+              // 调用 reject API 通知 serve 取消，然后清空整个队列
+              getProvider().rejectQuestion(pendingQuestion.id).catch(() => {})
               clearPendingQuestions(currentSessionId!)
             }}
           />

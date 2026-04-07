@@ -76,6 +76,20 @@ function parseModel(model: string): { providerID: string; modelID: string } {
   return { providerID: 'netease-codemaker', modelID: model }
 }
 
+// ─── 调试日志工具（写入文件，方便分析） ──────────────────────────────────────
+function debugLog(msg: string): void {
+  if (!import.meta.env.DEV) return
+  console.log(msg)
+  try {
+    // 通过 fetch 把日志推到本地小端口，如果有的话
+    // 直接写 localStorage 作为备选
+    const key = '__sse_debug_log__'
+    const prev = localStorage.getItem(key) || ''
+    const ts = new Date().toISOString().slice(11, 23)
+    localStorage.setItem(key, prev + `[${ts}] ${msg}\n`)
+  } catch { /* ignore */ }
+}
+
 // ─── 全局 SSE 连接管理（单例，多次 sendMessage 复用） ─────────────────────────
 
 type ChunkCallback = (accumulated: string) => void
@@ -171,15 +185,13 @@ class OpenCodeSSEManager {
     if (evt.type === 'server.heartbeat') return
 
     if (import.meta.env.DEV) {
-      // 只打印关键事件，delta 太频繁只打首条
-      if (evt.type === 'message.part.updated') {
-        const part = (evt.properties as { part: { type: string }; delta?: string }).part
-        const delta = (evt.properties as { delta?: string }).delta
-        if (part.type === 'text' && delta) {
-          // 只在有 activeStream 且是首个 delta 时打印
-        }
-      } else {
-        console.log(`[OpenCodeSSE] ${evt.type}`, JSON.stringify(evt.properties).slice(0, 150))
+      // 打印所有非 delta 事件 + activeStreams 快照
+      if (evt.type !== 'message.part.updated') {
+        const streamSnapshot = Array.from(this.activeStreams.entries()).map(([id, s]) =>
+          `${id.slice(0,8)}(sid=${s.sessionID?.slice(0,8)},aborted=${s.aborted},wait=${s.waitingForAnswer})`
+        ).join(', ')
+        debugLog(`[SSE] ${evt.type} ${JSON.stringify(evt.properties).slice(0, 300)}`)
+        debugLog(`[SSE] streams(${this.activeStreams.size}): ${streamSnapshot || '(empty)'}`)
       }
     }
 
@@ -194,6 +206,10 @@ class OpenCodeSSEManager {
         if (stream && !stream.aborted) {
           stream.accumulated += delta
           stream.onChunk(stream.accumulated)
+        } else if (import.meta.env.DEV) {
+          // delta 到达但找不到对应的 activeStream —— 这就是中断的直接原因
+          console.warn('[OpenCodeSSE] ⚠️ UNROUTED delta! messageID =', part.messageID,
+            'activeStreams keys:', Array.from(this.activeStreams.keys()).map(k => k.slice(0,8)))
         }
       }
     } else if (evt.type === 'message.updated') {
@@ -251,19 +267,15 @@ class OpenCodeSSEManager {
       if (isFinalComplete) {
         const stream = this.activeStreams.get(info.id)
         if (stream && !stream.aborted) {
-          // 如果正在等待用户回答 question，不清理流；
-          // answer 提交后 waitingForAnswer 会被清除，后续消息到达时再正常完成
           if (stream.waitingForAnswer) {
-            if (import.meta.env.DEV) {
-              console.log('[OpenCodeSSE] stream complete deferred (waitingForAnswer), finish =', info.finish)
-            }
+            debugLog(`[SSE] ⏸ complete DEFERRED (waitingForAnswer) msgId=${info.id.slice(0,8)} finish=${info.finish}`)
           } else {
-            if (import.meta.env.DEV) {
-              console.log('[OpenCodeSSE] stream complete, finish =', info.finish, 'length =', stream.accumulated.length)
-            }
+            debugLog(`[SSE] ✅ complete msgId=${info.id.slice(0,8)} finish=${info.finish} len=${stream.accumulated.length}`)
             this.activeStreams.delete(info.id)
             stream.onComplete()
           }
+        } else {
+          debugLog(`[SSE] ℹ️ complete but no active stream for msgId=${info.id.slice(0,8)} finish=${info.finish}`)
         }
       }
     } else if (evt.type === 'question.asked') {
@@ -356,13 +368,20 @@ class OpenCodeSSEManager {
    * 让后续的 isFinalComplete 逻辑能正常触发 onComplete。
    */
   clearWaitingForAnswer(sessionID: string): void {
-    for (const stream of this.activeStreams.values()) {
+    let found = false
+    for (const [msgId, stream] of this.activeStreams.entries()) {
       if (stream.sessionID === sessionID && stream.waitingForAnswer) {
         stream.waitingForAnswer = false
-        if (import.meta.env.DEV) {
-          console.log('[OpenCodeSSE] clearWaitingForAnswer for session:', sessionID)
-        }
+        found = true
+        debugLog(`[SSE] clearWaitingForAnswer msgId=${msgId.slice(0,8)} session=${sessionID.slice(0,8)}`)
       }
+    }
+    if (!found) {
+      debugLog(`[SSE] ⚠️ clearWaitingForAnswer: NO stream for session=${sessionID.slice(0,8)} streams=${
+        Array.from(this.activeStreams.entries()).map(([id, s]) =>
+          `${id.slice(0,8)}(sid=${s.sessionID?.slice(0,8)},wait=${s.waitingForAnswer})`
+        ).join(',')
+      }`)
     }
   }
 }
@@ -627,30 +646,53 @@ export function clearSessionMapOnModelChange(): void {
 
   /**
    * 回答 AI agent 的提问
-   * 调用 POST /session/{sessionID}/question/{questionId}
+   *
+   * OpenCode 协议：POST /question/{requestID}/reply
+   * body: { answers: [["选中的label"]] }
+   *
+   * requestID 来自 question.asked 事件的 id 字段（以 "que" 开头）
    */
   async answerQuestion(sessionID: string, questionId: string, answer: string): Promise<void> {
     const port = useSettingsStore.getState().servePort ?? 4000
     const baseUrl = `http://127.0.0.1:${port}`
-    if (import.meta.env.DEV) {
-      console.log(`[CodemakProvider] answerQuestion sessionID=${sessionID} questionId=${questionId} answer="${answer}"`)
-    }
+    debugLog(`[CodemakProvider] answerQuestion questionId=${questionId} answer="${answer}"`)
 
     // 提交答案前先清除 waitingForAnswer 保护标志，
     // 让后续 serve 推送的新消息能正常通过 isFinalComplete 逻辑
     sseManager.clearWaitingForAnswer(sessionID)
 
-    const res = await fetch(`${baseUrl}/session/${sessionID}/question/${questionId}`, {
+    // 构造 answers：二维数组，每个 question 对应一个选项数组
+    const answers = [[answer]]
+
+    const res = await fetch(`${baseUrl}/question/${questionId}/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answer })
+      body: JSON.stringify({ answers })
     })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
       throw new Error(`answerQuestion failed: HTTP ${res.status} ${body}`)
     }
-    if (import.meta.env.DEV) {
-      console.log('[CodemakProvider] ✅ answerQuestion accepted')
+    debugLog(`[CodemakProvider] ✅ answerQuestion accepted`)
+  }
+
+  /**
+   * 拒绝/取消 AI agent 的提问
+   *
+   * OpenCode 协议：POST /question/{requestID}/reject
+   */
+  async rejectQuestion(questionId: string): Promise<void> {
+    const port = useSettingsStore.getState().servePort ?? 4000
+    const baseUrl = `http://127.0.0.1:${port}`
+    debugLog(`[CodemakProvider] rejectQuestion questionId=${questionId}`)
+
+    const res = await fetch(`${baseUrl}/question/${questionId}/reject`, {
+      method: 'POST'
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`rejectQuestion failed: HTTP ${res.status} ${body}`)
     }
+    debugLog(`[CodemakProvider] ✅ rejectQuestion accepted`)
   }
 }

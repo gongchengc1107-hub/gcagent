@@ -60,4 +60,10 @@ export class MockChatProvider implements ChatProvider {
       console.log('[MockChatProvider] answerQuestion (no-op)')
     }
   }
+
+  async rejectQuestion(_questionId: string): Promise<void> {
+    if (import.meta.env.DEV) {
+      console.log('[MockChatProvider] rejectQuestion (no-op)')
+    }
+  }
 }

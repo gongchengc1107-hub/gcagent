@@ -51,4 +51,10 @@ export class DirectProvider implements ChatProvider {
       console.log('[DirectProvider] answerQuestion (no-op)')
     }
   }
+
+  async rejectQuestion(_questionId: string): Promise<void> {
+    if (import.meta.env.DEV) {
+      console.log('[DirectProvider] rejectQuestion (no-op)')
+    }
+  }
 }
