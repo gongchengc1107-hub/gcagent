@@ -167,14 +167,18 @@ export function useSendMessage(): UseSendMessageReturn {
     const sessionId = targetSessionId ?? state.currentSessionId
     if (!sessionId) return
 
-    // 用 getState() 读取最新 streamCleanup，避免 stale closure 问题
+    // 1. 调用前端 cleanup（abort fetch + abortStream）
     const cleanup = state.streamCleanups[sessionId]
     cleanup?.()
-    // 只清理指定 session 的状态，不调用 sseManager.abortAll()
+
+    // 2. 通知 serve 后端停止生成
+    getProvider().abortSession(sessionId).catch(() => {})
+
+    // 3. 清理 per-session 状态
     setIsStreaming(sessionId, false)
     setStreamCleanup(sessionId, null)
-    // 找到正在流式的消息，重置 isStreaming：
-    // 避免停止生成后（尤其在 content 为空的等待阶段），loading 动画永久卡住
+
+    // 4. 重置流式消息的 isStreaming 标记，避免 loading 动画永久卡住
     const sessionMessages = state.messages[sessionId] || []
     const streamingMsg = sessionMessages.find((m) => m.isStreaming)
     if (streamingMsg) {

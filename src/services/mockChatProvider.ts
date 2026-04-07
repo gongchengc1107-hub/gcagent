@@ -66,4 +66,10 @@ export class MockChatProvider implements ChatProvider {
       console.log('[MockChatProvider] rejectQuestion (no-op)')
     }
   }
+
+  async abortSession(_appSessionId: string): Promise<void> {
+    if (import.meta.env.DEV) {
+      console.log('[MockChatProvider] abortSession (no-op)')
+    }
+  }
 }

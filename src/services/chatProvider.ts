@@ -53,8 +53,10 @@ export interface SendMessageParams {
 export interface ChatProvider {
   /** 发送消息，返回 cleanup 函数用于中止生成 */
   sendMessage(params: SendMessageParams): () => void
-  /** 主动停止当前生成 */
+  /** 主动停止当前生成（全量清理，慎用） */
   stopGeneration(): void
+  /** 中止指定会话的生成（通知 serve 后端停止） */
+  abortSession(appSessionId: string): Promise<void>
   /**
    * 回答 AI agent 的提问
    * OpenCode 协议：POST /question/{requestID}/reply

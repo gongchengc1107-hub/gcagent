@@ -647,6 +647,31 @@ export function clearSessionMapOnModelChange(currentAppSessionId?: string): void
   }
 
   /**
+   * 中止指定 app 会话的生成
+   * 1. 调用 serve 的 POST /session/{openCodeSessionID}/abort 通知后端停止
+   * 2. 前端 abortAll 清理活跃流
+   */
+  async abortSession(appSessionId: string): Promise<void> {
+    const entry = sessionMap.get(appSessionId)
+    if (!entry) {
+      debugLog(`[CodemakProvider] abortSession: no session entry for ${appSessionId}`)
+      return
+    }
+    const port = useSettingsStore.getState().servePort ?? 4000
+    const baseUrl = `http://127.0.0.1:${port}`
+    debugLog(`[CodemakProvider] abortSession openCode=${entry.openCodeSessionId}`)
+
+    // 通知 serve 停止生成
+    try {
+      await fetch(`${baseUrl}/session/${entry.openCodeSessionId}/abort`, {
+        method: 'POST'
+      })
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('[CodemakProvider] abortSession fetch failed:', err)
+    }
+  }
+
+  /**
    * 回答 AI agent 的提问
    *
    * OpenCode 协议：POST /question/{requestID}/reply

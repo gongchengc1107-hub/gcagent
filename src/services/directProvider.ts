@@ -57,4 +57,10 @@ export class DirectProvider implements ChatProvider {
       console.log('[DirectProvider] rejectQuestion (no-op)')
     }
   }
+
+  async abortSession(_appSessionId: string): Promise<void> {
+    if (import.meta.env.DEV) {
+      console.log('[DirectProvider] abortSession (no-op)')
+    }
+  }
 }
