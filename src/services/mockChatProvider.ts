@@ -55,7 +55,7 @@ export class MockChatProvider implements ChatProvider {
   }
 
   /** Mock 实现：不调用真实 API，直接 resolve */
-  async answerQuestion(_sessionID: string, _questionId: string, _answer: string): Promise<void> {
+  async answerQuestion(_sessionID: string, _questionId: string, _answers: string[]): Promise<void> {
     if (import.meta.env.DEV) {
       console.log('[MockChatProvider] answerQuestion (no-op)')
     }

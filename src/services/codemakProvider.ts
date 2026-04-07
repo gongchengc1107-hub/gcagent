@@ -650,30 +650,29 @@ export function clearSessionMapOnModelChange(currentAppSessionId?: string): void
    * 回答 AI agent 的提问
    *
    * OpenCode 协议：POST /question/{requestID}/reply
-   * body: { answers: [["选中的label"]] }
+   * body: { answers: [["label1", "label2"]] }
    *
-   * requestID 来自 question.asked 事件的 id 字段（以 "que" 开头）
+   * @param answers 选中的答案数组（单选时长度为 1，多选时多个）
    */
-  async answerQuestion(sessionID: string, questionId: string, answer: string): Promise<void> {
+  async answerQuestion(sessionID: string, questionId: string, answers: string[]): Promise<void> {
     const port = useSettingsStore.getState().servePort ?? 4000
     const baseUrl = `http://127.0.0.1:${port}`
-    debugLog(`[CodemakProvider] answerQuestion questionId=${questionId} answer="${answer}"`)
+    debugLog(`[CodemakProvider] answerQuestion questionId=${questionId} answers=${JSON.stringify(answers)}`)
 
-    // 提交答案前先清除 waitingForAnswer 保护标志，
-    // 让后续 serve 推送的新消息能正常通过 isFinalComplete 逻辑
+    // 提交答案前先清除 waitingForAnswer 保护标志
     sseManager.clearWaitingForAnswer(sessionID)
 
     // 构造 answers：二维数组，每个 question 对应一个选项数组
-    const answers = [[answer]]
+    const body = { answers: [answers] }
 
     const res = await fetch(`${baseUrl}/question/${questionId}/reply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers })
+      body: JSON.stringify(body)
     })
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`answerQuestion failed: HTTP ${res.status} ${body}`)
+      const respBody = await res.text().catch(() => '')
+      throw new Error(`answerQuestion failed: HTTP ${res.status} ${respBody}`)
     }
     debugLog(`[CodemakProvider] ✅ answerQuestion accepted`)
   }

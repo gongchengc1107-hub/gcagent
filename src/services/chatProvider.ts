@@ -17,6 +17,10 @@ export interface QuestionAsked {
   questions: Array<{
     question: string
     header?: string
+    /** 是否允许多选（默认 false，即单选） */
+    multiple?: boolean
+    /** 是否允许自定义输入（默认 true） */
+    custom?: boolean
     options?: Array<{ label: string; description?: string }>
   }>
   /** 关联的工具调用信息 */
@@ -54,8 +58,9 @@ export interface ChatProvider {
   /**
    * 回答 AI agent 的提问
    * OpenCode 协议：POST /question/{requestID}/reply
+   * @param answers 选中的答案数组（单选时长度为 1，多选时多个）
    */
-  answerQuestion(sessionID: string, questionId: string, answer: string): Promise<void>
+  answerQuestion(sessionID: string, questionId: string, answers: string[]): Promise<void>
   /**
    * 拒绝/取消 AI agent 的提问
    * OpenCode 协议：POST /question/{requestID}/reject

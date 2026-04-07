@@ -431,12 +431,12 @@ const MessageInput: FC = () => {
    * 2. 清除 pending question（关闭弹层）
    */
   const handleQuestionSubmit = useCallback(
-    async (answer: string) => {
+    async (answers: string[]) => {
       if (!pendingQuestion || !currentSessionId) return
       // 先弹出队列中当前问题（关闭或切换到下一个），避免二次点击
       shiftPendingQuestion(currentSessionId)
       try {
-        await getProvider().answerQuestion(pendingQuestion.sessionID, pendingQuestion.id, answer)
+        await getProvider().answerQuestion(pendingQuestion.sessionID, pendingQuestion.id, answers)
       } catch (err) {
         message.error(`回答提交失败：${err instanceof Error ? err.message : String(err)}`)
         // 失败时将问题重新 push 回队列头部（恢复弹层），让用户重试
