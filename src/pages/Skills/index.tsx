@@ -33,6 +33,12 @@ const SkillsPage: FC = () => {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null)
 
+  /** 按 createdAt 倒序排列，最新添加的在最上面 */
+  const sortedSkills = useMemo(
+    () => [...skills].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
+    [skills],
+  )
+
   /** 磁盘 Skill 同步 — 每次进入页面静默刷新，初始化由 ServiceProvider 负责 */
   useEffect(() => {
     syncDiskSkills().then((diskSkills) => {
@@ -183,7 +189,7 @@ const SkillsPage: FC = () => {
             icon={<PlusOutlined />}
             onClick={() => setInstallModalOpen(true)}
           >
-            安装 Skill
+            创建 Skill
           </Button>
           <Button icon={<ExportOutlined />} onClick={openSkillHub}>
             Skill Hub
@@ -205,7 +211,7 @@ const SkillsPage: FC = () => {
             </div>
           ))}
         </div>
-      ) : skills.length === 0 ? (
+      ) : sortedSkills.length === 0 ? (
         /* 空状态 */
         <div
           className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed"
@@ -223,7 +229,7 @@ const SkillsPage: FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setInstallModalOpen(true)}
             >
-              安装 Skill
+              创建 Skill
             </Button>
             <Button icon={<ExportOutlined />} onClick={openSkillHub}>
               Skill Hub
@@ -232,7 +238,7 @@ const SkillsPage: FC = () => {
         </div>
       ) : (
         <Table<Skill>
-          dataSource={skills}
+          dataSource={sortedSkills}
           columns={columns}
           rowKey="id"
           pagination={false}

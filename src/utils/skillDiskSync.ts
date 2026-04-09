@@ -2,6 +2,9 @@ import type { Skill } from '../types'
 
 /** 通过 Electron IPC 调用主进程文件系统操作 */
 async function ipcInvoke<T>(channel: string, ...args: unknown[]): Promise<T> {
+  if (!window.electronAPI?.invoke) {
+    throw new Error('Electron IPC 不可用（非 Electron 环境或 preload 未加载）')
+  }
   return window.electronAPI.invoke(channel, ...args) as Promise<T>
 }
 

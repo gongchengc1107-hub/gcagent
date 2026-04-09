@@ -31,6 +31,8 @@ export interface ChatMessage {
   createdAt: number
   toolCalls?: ToolCall[]
   images?: ImageAttachment[]
+  /** 参考文件附件 */
+  files?: FileAttachment[]
 }
 
 /** Agent 配置 */
@@ -53,6 +55,8 @@ export interface Agent {
   skillIds: string[]
   /** 开启后 Agent 可自动调用工具无需每步确认 */
   autoMode: boolean
+  /** 是否在聊天 Agent 选择器中隐藏（不展示） */
+  hidden?: boolean
   /** 是否为内置 Agent */
   isBuiltin: boolean
   /** 是否来自磁盘同步 */
@@ -120,6 +124,19 @@ export interface ImageAttachment {
   dataUrl: string // base64
   name: string
   size: number // bytes
+}
+
+/** 参考文件附件（文本/代码/PDF 等） */
+export interface FileAttachment {
+  id: string
+  /** 文件名（含后缀） */
+  name: string
+  /** 文件大小（字节） */
+  size: number
+  /** 提取的文本内容 */
+  content: string
+  /** 文件后缀，如 '.ts', '.pdf' */
+  fileType: string
 }
 
 /** 可预览的文件类型 */

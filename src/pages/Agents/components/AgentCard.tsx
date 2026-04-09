@@ -92,6 +92,14 @@ const AgentCard: FC<AgentCardProps> = ({ agent, onEdit, onDelete, onToggle }) =>
               自动模式
             </span>
           )}
+          {agent.hidden && (
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+            >
+              不展示
+            </span>
+          )}
           {agent.skillIds.length > 0 && (
             <span
               className="rounded px-1.5 py-0.5 text-[10px] font-medium"

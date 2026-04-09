@@ -12,15 +12,24 @@ import { useAgentStore, useChatStore, useSkillStore } from '@/stores'
 import { useModelStore, DEFAULT_MODEL } from '@/stores/useModelStore'
 import { useSendMessage } from '@/hooks/useSendMessage'
 import { getProvider } from '@/services/providerFactory'
-import type { ChatMessage, ImageAttachment } from '@/types'
+import type { ChatMessage, ImageAttachment, FileAttachment } from '@/types'
 import type { QuestionAsked } from '@/services/chatProvider'
 import { extractUrls } from '@/utils/urlDetector'
+import {
+  readFile,
+  isSupportedFile,
+  buildFilePromptPrefix,
+  FILE_ACCEPT,
+  MAX_FILE_SIZE,
+  MAX_FILE_COUNT,
+} from '@/utils/fileReader'
 import UrlTag from './UrlTag'
-import ImagePreview from './ImagePreview'
+import AttachmentPreview from './AttachmentPreview'
 import SkillCommandMenu from './SkillCommandMenu'
 import AgentSelectorPopup from './AgentSelectorPopup'
 import type { AgentSelectorPopupHandle } from './AgentSelectorPopup'
 import SkillSelectorPopup from './SkillSelectorPopup'
+import { isAgentHidden } from '@/utils/diskSync'
 import type { SkillSelectorPopupHandle } from './SkillSelectorPopup'
 import QuestionDialog from './QuestionDialog'
 
@@ -79,6 +88,7 @@ type ActivePopup = 'agent' | 'skill' | null
 const MessageInput: FC = () => {
   const [content, setContent] = useState('')
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
+  const [pendingFiles, setPendingFiles] = useState<FileAttachment[]>([])
   const [removedUrls, setRemovedUrls] = useState<Set<string>>(new Set())
   const [isDragOver, setIsDragOver] = useState(false)
   const [showSkillMenu, setShowSkillMenu] = useState(false)
@@ -130,14 +140,31 @@ const MessageInput: FC = () => {
   const pendingQuestionTotal = pendingQuestionQueue.length
   /** 当前问题在队列中的序号（从 1 开始） — 始终为 1，因为回答后 shift 掉 */
   const pendingQuestionIndex = pendingQuestion ? 1 : 0
+  /** 查找 general agent 的 id，作为全局默认 fallback */
+  const generalAgentId = useMemo(
+    () => agents.find((a) => a.backendName === 'general' && a.enabled)?.id ?? '',
+    [agents]
+  )
+
+  /** 从候选中解析一个有效的 agentId：优先当前会话绑定 → fallback general → 第一个可用 */
+  const resolveAgentId = useCallback(
+    (preferred?: string) => {
+      const enabledPrimary = agents.filter((a) => a.enabled && !isAgentHidden(a))
+      if (preferred && enabledPrimary.some((a) => a.id === preferred)) return preferred
+      if (generalAgentId && enabledPrimary.some((a) => a.id === generalAgentId)) return generalAgentId
+      return enabledPrimary[0]?.id ?? ''
+    },
+    [agents, generalAgentId]
+  )
+
   const [selectedAgentId, setSelectedAgentId] = useState(
-    currentSession?.agentId || agents[0]?.id || ''
+    () => resolveAgentId(currentSession?.agentId)
   )
 
   // 会话切换时同步 agent 选择 + 恢复草稿
   useEffect(() => {
     if (currentSession) {
-      setSelectedAgentId(currentSession.agentId)
+      setSelectedAgentId(resolveAgentId(currentSession.agentId))
     }
     if (currentSessionId) {
       setContent(getDraft(currentSessionId))
@@ -146,8 +173,21 @@ const MessageInput: FC = () => {
     }
     setRemovedUrls(new Set())
     setPendingImages([])
+    setPendingFiles([])
     setActivePopup(null)
   }, [currentSessionId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 当 agents 列表变化（如 disable/enable/删除）时，检查 selectedAgentId 是否仍有效
+  useEffect(() => {
+    const stillValid = agents.some(
+      (a) => a.id === selectedAgentId && a.enabled && !isAgentHidden(a)
+    )
+    if (!stillValid) {
+      const fallback = resolveAgentId()
+      setSelectedAgentId(fallback)
+      if (currentSessionId) updateSessionAgent(currentSessionId, fallback)
+    }
+  }, [agents]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 输入内容变化时自动保存草稿（防抖 300ms）
   const draftTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -326,25 +366,70 @@ const MessageInput: FC = () => {
     [addImages]
   )
 
-  // ── 文件上传（+ 按钮）───────────────────────────────────────
+  // ── 文件上传（+ 按钮）─────────────────────────────────────────
 
-  /** 触发文件选择器 */
+  /** 点击 + 按钮：直接打开文件选择器 */
   const handlePlusClick = useCallback(() => {
     setActivePopup(null)
     fileInputRef.current?.click()
   }, [])
 
-  /** 文件选择器变化 */
+  // ── 参考文件处理 ─────────────────────────────────────────────
+
+  /** 添加参考文件 */
+  const addRefFiles = useCallback(async (files: File[]) => {
+    const supported = files.filter(isSupportedFile)
+    if (supported.length === 0) {
+      message.warning('不支持的文件格式')
+      return
+    }
+
+    const oversized = supported.filter((f) => f.size > MAX_FILE_SIZE)
+    if (oversized.length > 0) {
+      message.warning(`以下文件超过 30MB 限制：${oversized.map((f) => f.name).join(', ')}`)
+    }
+
+    const validFiles = supported.filter((f) => f.size <= MAX_FILE_SIZE)
+    if (validFiles.length === 0) return
+
+    const results = await Promise.all(validFiles.slice(0, MAX_FILE_COUNT).map(readFile))
+    const valid = results.filter(Boolean) as FileAttachment[]
+    if (valid.length === 0) {
+      message.error('文件读取失败')
+      return
+    }
+
+    setPendingFiles((prev) => {
+      const remaining = MAX_FILE_COUNT - prev.length
+      if (remaining <= 0) {
+        message.warning(`最多只能附带 ${MAX_FILE_COUNT} 个参考文件`)
+        return prev
+      }
+      return [...prev, ...valid.slice(0, remaining)]
+    })
+  }, [])
+
+  /** 移除参考文件 */
+  const handleRemoveFile = useCallback((id: string) => {
+    setPendingFiles((prev) => prev.filter((f) => f.id !== id))
+  }, [])
+
+  /** 文件选择器变化：自动分流图片和参考文件 */
   const handleFileInputChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || [])
-      if (files.length > 0) {
-        await addImages(files)
-      }
+      if (files.length === 0) return
+
+      const imageFiles = files.filter((f) => f.type.startsWith('image/'))
+      const refFiles = files.filter((f) => !f.type.startsWith('image/'))
+
+      if (imageFiles.length > 0) await addImages(imageFiles)
+      if (refFiles.length > 0) await addRefFiles(refFiles)
+
       // 重置 input，允许重复选择同一文件
       e.target.value = ''
     },
-    [addImages]
+    [addImages, addRefFiles]
   )
 
   // ── 拖拽 ────────────────────────────────────────────────────
@@ -374,9 +459,15 @@ const MessageInput: FC = () => {
       e.stopPropagation()
       dragCounterRef.current = 0
       setIsDragOver(false)
-      await addImages(Array.from(e.dataTransfer.files))
+
+      const allFiles = Array.from(e.dataTransfer.files)
+      const imageFiles = allFiles.filter((f) => f.type.startsWith('image/'))
+      const refFiles = allFiles.filter((f) => !f.type.startsWith('image/') && isSupportedFile(f))
+
+      if (imageFiles.length > 0) await addImages(imageFiles)
+      if (refFiles.length > 0) await addRefFiles(refFiles)
     },
-    [addImages]
+    [addImages, addRefFiles]
   )
 
   // ── 发送 ────────────────────────────────────────────────────
@@ -384,18 +475,24 @@ const MessageInput: FC = () => {
   const handleSend = useCallback(() => {
     if (!content.trim() || !currentSessionId || isStreaming) return
 
+    // 将参考文件内容拼接为 prompt 前缀
+    const filePrefix = buildFilePromptPrefix(pendingFiles)
+    const finalContent = filePrefix + content.trim()
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       sessionId: currentSessionId,
       role: 'user',
       content: content.trim(),
       createdAt: Date.now(),
-      ...(pendingImages.length > 0 ? { images: pendingImages } : {})
+      ...(pendingImages.length > 0 ? { images: pendingImages } : {}),
+      ...(pendingFiles.length > 0 ? { files: pendingFiles } : {}),
     }
     addMessage(currentSessionId, userMessage)
 
     setContent('')
     setPendingImages([])
+    setPendingFiles([])
     clearDraft(currentSessionId)
     setRemovedUrls(new Set())
     setActivePopup(null)
@@ -403,7 +500,7 @@ const MessageInput: FC = () => {
     const sessionMessages = useChatStore.getState().messages[currentSessionId] || []
 
     sendMessage({
-      content: content.trim(),
+      content: finalContent,
       sessionId: currentSessionId,
       messages: sessionMessages,
       agentId: selectedAgentId,
@@ -418,6 +515,7 @@ const MessageInput: FC = () => {
     currentSessionId,
     isStreaming,
     pendingImages,
+    pendingFiles,
     selectedAgentId,
     addMessage,
     clearDraft,
@@ -547,37 +645,6 @@ const MessageInput: FC = () => {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* 选择栏 + Token 指示 */}
-      <div className="mb-2 flex items-center gap-3">
-        <Select
-          size="small"
-          value={selectedAgentId}
-          onChange={(agentId) => {
-            setSelectedAgentId(agentId)
-            if (currentSessionId) updateSessionAgent(currentSessionId, agentId)
-          }}
-          style={{ width: 130 }}
-          suffixIcon={<RobotOutlined />}
-          options={agents
-            .filter((a) => a.enabled && a.mode !== 'subagent')
-            .map((a) => ({ label: `${a.emoji} ${a.name}`, value: a.id }))}
-        />
-        <Select
-          size="small"
-          value={currentModel || DEFAULT_MODEL}
-          onChange={setCurrentModel}
-          style={{ width: 220 }}
-          loading={modelsLoading}
-          suffixIcon={modelsLoading ? <LoadingOutlined /> : undefined}
-          options={modelOptions}
-          showSearch
-          optionFilterProp="label"
-        />
-        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
-          {estimatedTokens} / 128k
-        </span>
-      </div>
-
       {/* URL 识别卡片列表 */}
       {detectedUrls.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
@@ -587,14 +654,19 @@ const MessageInput: FC = () => {
         </div>
       )}
 
-      {/* 图片预览区 */}
-      <ImagePreview images={pendingImages} onRemove={handleRemoveImage} />
+      {/* 附件预览区（图片 + 参考文件统一卡片样式） */}
+      <AttachmentPreview
+        images={pendingImages}
+        files={pendingFiles}
+        onRemoveImage={handleRemoveImage}
+        onRemoveFile={handleRemoveFile}
+      />
 
-      {/* 隐藏的文件选择器（图片） */}
+      {/* 隐藏的文件选择器（图片 + 参考文件） */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={`image/*,${FILE_ACCEPT}`}
         multiple
         className="hidden"
         onChange={handleFileInputChange}
@@ -662,7 +734,7 @@ const MessageInput: FC = () => {
               className="max-h-[200px] min-h-[40px] w-full resize-none bg-transparent text-sm outline-none"
               style={{ color: 'var(--text-primary)' }}
               placeholder={
-                isStreaming ? 'AI 正在回复...' : '输入消息，Enter 发送，Shift+Enter 换行，可粘贴/拖拽图片'
+                isStreaming ? 'AI 正在回复...' : '输入消息，Enter 发送，Shift+Enter 换行，可粘贴/拖拽图片或文件'
               }
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
@@ -687,7 +759,7 @@ const MessageInput: FC = () => {
               {/* + 上传文件 */}
               <ToolbarButton
                 icon={<PlusOutlined />}
-                tooltip="上传图片"
+                tooltip="上传文件"
                 onClick={handlePlusClick}
                 active={false}
               />
@@ -731,9 +803,40 @@ const MessageInput: FC = () => {
         </div>
       </div>
 
+      {/* Agent 选择 + 模型选择 + Token 指示（输入框下方） */}
+      <div className="mt-2 flex items-center gap-3">
+        <Select
+          size="small"
+          value={selectedAgentId}
+          onChange={(agentId) => {
+            setSelectedAgentId(agentId)
+            if (currentSessionId) updateSessionAgent(currentSessionId, agentId)
+          }}
+          style={{ width: 130 }}
+          suffixIcon={<RobotOutlined />}
+          options={agents
+            .filter((a) => a.enabled && !isAgentHidden(a))
+            .map((a) => ({ label: `${a.emoji} ${a.name}`, value: a.id }))}
+        />
+        <Select
+          size="small"
+          value={currentModel || DEFAULT_MODEL}
+          onChange={setCurrentModel}
+          style={{ width: 220 }}
+          loading={modelsLoading}
+          suffixIcon={modelsLoading ? <LoadingOutlined /> : undefined}
+          options={modelOptions}
+          showSearch
+          optionFilterProp="label"
+        />
+        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
+          {estimatedTokens} / 128k
+        </span>
+      </div>
+
       {isDragOver && (
         <div className="mt-1 text-center text-xs" style={{ color: 'var(--accent-primary)' }}>
-          松开鼠标以添加图片
+          松开鼠标以添加文件
         </div>
       )}
     </div>

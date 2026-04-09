@@ -4,13 +4,13 @@ import { useChatStore } from '@/stores/useChatStore'
 
 /**
  * 欢迎会话模板
- * 默认绑定 build agent（codemaker 的通用主 agent）
+ * 默认绑定 general agent
  */
 export const WELCOME_SESSION: Omit<ChatSession, 'createdAt' | 'updatedAt'> = {
   id: 'session-welcome',
   title: '欢迎使用 Codemaker',
   isPinned: false,
-  agentId: 'cli-build',
+  agentId: 'cli-general',
   modelId: 'claude-3-5-sonnet'
 }
 

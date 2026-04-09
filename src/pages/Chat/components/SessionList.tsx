@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons'
 import { useChatStore, useAgentStore } from '@/stores'
 import { useModelStore, DEFAULT_MODEL } from '@/stores/useModelStore'
+import { isAgentHidden } from '@/utils/diskSync'
 import type { ChatSession, ChatMessage } from '@/types'
 import ContextMenu from '@/components/ContextMenu'
 import type { ContextMenuItem } from '@/components/ContextMenu'
@@ -115,9 +116,16 @@ const SessionList: FC<SessionListProps> = ({ onOpenSearch }) => {
   const groups = useMemo(() => groupSessions(sessions), [sessions])
 
   const handleNewSession = useCallback(() => {
-    // 优先继承当前 session 绑定的 agent（用户最近在用的），否则取列表第一个可用的
+    // 优先继承当前 session 绑定的 agent → fallback 到 general → 列表第一个可用的
     const currentSession = sessions.find((s) => s.id === currentSessionId)
-    const agentId = currentSession?.agentId ?? agents.find((a) => a.enabled && a.mode !== 'subagent')?.id ?? ''
+    const enabledPrimary = agents.filter((a) => a.enabled && !isAgentHidden(a))
+    const generalAgent = enabledPrimary.find((a) => a.backendName === 'general')
+    const preferredId = currentSession?.agentId
+    const agentId =
+      (preferredId && enabledPrimary.some((a) => a.id === preferredId) ? preferredId : null)
+      ?? generalAgent?.id
+      ?? enabledPrimary[0]?.id
+      ?? ''
     const modelId = currentModel || DEFAULT_MODEL
     createSession('新对话', agentId, modelId)
   }, [createSession, sessions, currentSessionId, agents, currentModel])

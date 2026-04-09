@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react'
 import { useAgentStore } from '@/stores'
+import { isAgentHidden } from '@/utils/diskSync'
 
 interface AgentSelectorPopupProps {
   /** 当前选中的 Agent ID */
@@ -33,8 +34,8 @@ const AgentSelectorPopup = forwardRef<AgentSelectorPopupHandle, AgentSelectorPop
     const containerRef = useRef<HTMLDivElement>(null)
 
     const filtered = agents.filter((a) => {
-      // 只展示已启用且非 subagent 模式的 agent
-      if (!a.enabled || a.mode === 'subagent') return false
+      // 只展示已启用且未隐藏的 agent
+      if (!a.enabled || isAgentHidden(a)) return false
       if (!filter) return true
       const kw = filter.toLowerCase()
       return a.name.toLowerCase().includes(kw) || a.description.toLowerCase().includes(kw)

@@ -293,7 +293,20 @@ export const useChatStore = create<ChatState>()(
       partialize: (state) => ({
         sessions: state.sessions,
         currentSessionId: state.currentSessionId,
-        messages: state.messages,
+        // 持久化时剥离 files[].content，避免大文件内容撑爆 localStorage
+        messages: Object.fromEntries(
+          Object.entries(state.messages).map(([sid, msgs]) => [
+            sid,
+            msgs.map((m) =>
+              m.files?.length
+                ? {
+                    ...m,
+                    files: m.files.map((f) => ({ ...f, content: '' })),
+                  }
+                : m
+            ),
+          ])
+        ),
         drafts: state.drafts
       }),
       // 恢复持久化数据后，将所有残留的 isStreaming:true 消息重置

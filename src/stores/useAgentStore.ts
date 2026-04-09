@@ -93,10 +93,13 @@ export const useAgentStore = create<AgentState>()(
             (a) => a.isBuiltin || !removedSet.has(a.backendName)
           )
 
-          // 内置 agent 的 backendName 集合（磁盘文件不能覆盖内置 agent）
-          const builtinBackendNames = new Set(
-            state.agents.filter((a) => a.isBuiltin).map((a) => a.backendName)
+          // 更新已存在的内置 agent（CLI 可能更新了描述等字段）
+          const builtinUpdates = new Map(
+            filtered.filter((a) => a.isBuiltin).map((a) => [a.backendName, a])
           )
+
+          // 内置 agent 的 backendName 集合（基于 diskSync 数据，兼容旧数据 isBuiltin 缺失）
+          const builtinBackendNames = new Set(builtinUpdates.keys())
 
           // 所有已存在 agent 的 backendName（全量去重，防止任何来源重复）
           const existingBackendNames = new Set(state.agents.map((a) => a.backendName))
@@ -106,11 +109,6 @@ export const useAgentStore = create<AgentState>()(
             .filter((a) => !existingBackendNames.has(a.backendName))
             .map((a) => ({ ...a, enabled: a.enabled ?? true }))
 
-          // 更新已存在的内置 agent（CLI 可能更新了描述等字段）
-          const builtinUpdates = new Map(
-            filtered.filter((a) => a.isBuiltin).map((a) => [a.backendName, a])
-          )
-
           // 移除旧的磁盘 Agent（不在本次同步结果中的非内置磁盘 agent）
           const currentDiskNames = new Set(
             filtered.filter((a) => !a.isBuiltin).map((a) => a.backendName)
@@ -118,9 +116,10 @@ export const useAgentStore = create<AgentState>()(
           const kept = state.agents
             .filter((a) => !a.isFromDisk || currentDiskNames.has(a.backendName))
             .map((a) => {
-              if (a.isBuiltin && builtinUpdates.has(a.backendName)) {
+              // 用 backendName 匹配内置 agent 更新（兼容旧数据中 isBuiltin 缺失的情况）
+              if (builtinUpdates.has(a.backendName)) {
                 const update = builtinUpdates.get(a.backendName)!
-                // 保留本地已确定的 isBuiltin/mode，防止 CLI 返回值覆盖
+                // 保留本地 mode，其余字段（含 hidden）以 diskSync 为准
                 return { ...a, ...update, isBuiltin: true, mode: a.mode }
               }
               return a
@@ -129,7 +128,9 @@ export const useAgentStore = create<AgentState>()(
           // 过滤掉磁盘文件中与内置同名的（防止重复追加）
           const safeToAdd = toAdd.filter((a) => !builtinBackendNames.has(a.backendName))
 
-          return { agents: [...kept, ...safeToAdd] }
+          const finalAgents = [...kept, ...safeToAdd]
+
+          return { agents: finalAgents }
         })
       },
 

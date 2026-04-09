@@ -1,0 +1,7 @@
+{
+  "name": "react-perf-optimizer",
+  "description": "React 前端性能全面审计与自动重构工具，通过静态分析与最佳实践检测，定位渲染瓶颈、内存泄漏、包体积膨胀等问题，输出诊断报告并提供可直接应用的重构代码，目标提升 10 倍运行时性能。",
+  "readme": "## 功能说明\n\nReact Performance Optimizer 是一个面向 React 项目的全面性能审计与自动重构 Skill。它在代码审查阶段自动触发，对目标组件及页面执行多维度性能分析，覆盖以下核心领域：\n\n1. **渲染性能**：检测不必要的重渲染（missing memo / useMemo / useCallback）、组件拆分粒度不合理、props 透传过深等问题\n2. **状态管理**：识别 Context 滥用导致的全局重渲染、Redux selector 未做 memoize、状态提升/下沉不当等反模式\n3. **包体积**：分析 tree-shaking 失效、动态导入缺失、重复依赖、大型库未按需加载等打包问题\n4. **数据获取**：审查请求瀑布流（waterfall）、缺少缓存策略、未使用 Suspense/并发特性等网络层瓶颈\n5. **内存与副作用**：检测未清理的定时器/订阅、闭包引用导致的内存泄漏、effect 依赖数组错误\n6. **列表与虚拟化**：大列表未使用虚拟滚动、key 不稳定导致整列表重建等问题\n\n审计完成后输出两部分交付物：\n- **诊断报告**（Markdown 格式）：按严重程度排序的问题清单，每项包含文件位置、问题描述、预估性能影响和修复建议\n- **重构代码**：针对每个可自动修复的问题，直接生成重构后的代码 diff，开发者确认后即可应用\n\n## 使用场景\n\n- 代码审查（Code Review）阶段自动触发，对新增或修改的 React 组件进行性能扫描\n- 开发者主动要求对某个页面或组件进行性能优化\n- 项目上线前的性能专项治理，批量扫描全量页面\n- 性能回归检测：对比前后版本的性能指标变化\n- 新人 Code Review 辅助：帮助团队成员学习 React 性能最佳实践\n\n## 示例\n\n### 示例 1：审查单个组件\n```\n/react-perf-optimizer src/components/Dashboard.tsx\n```\n输出 Dashboard 组件的性能诊断报告，并自动生成 useMemo、React.memo 等重构建议。\n\n### 示例 2：全项目扫描\n```\n/react-perf-optimizer --scope=all\n```\n对整个 src 目录执行全面性能审计，输出汇总报告与逐文件重构方案。\n\n### 示例 3：Code Review 自动触发\n当提交的 PR 包含 React 组件变更时，自动执行性能扫描并在审查意见中附带优化建议。",
+  "tags": ["react", "performance", "optimization", "code-review", "refactoring"],
+  "triggers": ["优化React性能", "性能审计", "react performance", "react perf", "前端性能优化", "组件性能检查", "渲染优化", "react优化", "/react-perf-optimizer"]
+}

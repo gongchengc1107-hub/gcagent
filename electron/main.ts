@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  statSync,
 } from 'fs'
 import { homedir } from 'os'
 import { spawn, execFile } from 'child_process'
@@ -207,7 +208,7 @@ function createWindow(): void {
     title: 'Codemaker Dashboard',
     autoHideMenuBar: true,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false
@@ -256,6 +257,7 @@ function createWindow(): void {
 function registerIPC(): void {
   /* ── 认证 ── */
   ipcMain.handle('auth:getLocalAuth', () => readLocalAuth())
+
 
   /* ── Serve 端口 ── */
   ipcMain.handle('serve:getPort', () => servePort)
@@ -885,6 +887,7 @@ function registerIPC(): void {
           if (entry.isFile() && entry.name.endsWith('.md')) {
             const filePath = join(dir, entry.name)
             const content = readFileSync(filePath, 'utf-8')
+            const stat = statSync(filePath)
             const { name, description } = parseSkillFrontmatter(content)
             const skillName = name || entry.name.replace(/\.md$/, '')
             results.push({
@@ -896,8 +899,8 @@ function registerIPC(): void {
               triggers: [skillName],
               enabled: true,
               filePath,
-              createdAt: 0,
-              updatedAt: 0,
+              createdAt: stat.birthtimeMs,
+              updatedAt: stat.mtimeMs,
               source,
             })
           }
@@ -907,6 +910,7 @@ function registerIPC(): void {
             const skillMd = join(dir, entry.name, 'SKILL.md')
             if (existsSync(skillMd)) {
               const content = readFileSync(skillMd, 'utf-8')
+              const stat = statSync(skillMd)
               const { name, description } = parseSkillFrontmatter(content)
               const skillName = name || entry.name
               results.push({
@@ -918,8 +922,8 @@ function registerIPC(): void {
                 triggers: [skillName],
                 enabled: true,
                 filePath: skillMd,
-                createdAt: 0,
-                updatedAt: 0,
+                createdAt: stat.birthtimeMs,
+                updatedAt: stat.mtimeMs,
                 source,
               })
             }

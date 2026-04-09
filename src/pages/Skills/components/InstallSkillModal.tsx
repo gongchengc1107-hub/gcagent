@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FC } from 'react'
 import { Modal, Tabs, Input, Button, Upload, Form, message } from 'antd'
 import { InboxOutlined } from '@ant-design/icons'
 import type { Skill } from '@/types'
 import { useSkillStore } from '@/stores'
 import { saveToDisk, syncDiskSkills, installByCommand } from '@/utils/skillDiskSync'
+import { useSkillGenerateStore } from '../store/useSkillGenerateStore'
+import { useAISkillGeneration } from '../hooks/useAISkillGeneration'
 import TagInput from './TagInput'
+import AIGenerateTab from './AIGenerateTab'
 
 interface InstallSkillModalProps {
   open: boolean
@@ -48,37 +51,73 @@ function parseSkillMarkdown(content: string, filename: string): Partial<Skill> {
   }
 }
 
-/** 安装 Skill 弹窗（命令 / 上传 / 手动填写 三个 Tab） */
+/** 安装 Skill 弹窗（命令 / 上传 / 手动填写 / 智能生成 四个 Tab） */
 const InstallSkillModal: FC<InstallSkillModalProps> = ({ open, onClose }) => {
   const { addSkill, mergeDiskSkills } = useSkillStore()
+  const [activeTab, setActiveTab] = useState('command')
+  const [manualInitialValues, setManualInitialValues] = useState<Partial<Skill> | null>(null)
+  const resetGenerateStore = useSkillGenerateStore((s) => s.resetAll)
+  const generatedSkill = useSkillGenerateStore((s) => s.generatedSkill)
+  const generatePhase = useSkillGenerateStore((s) => s.phase)
+  const { stopGeneration } = useAISkillGeneration()
+
+  /** AI 生成完成后，自动填充到手动填写 Tab */
+  useEffect(() => {
+    if (generatePhase === 'done' && generatedSkill) {
+      setManualInitialValues(generatedSkill)
+      setActiveTab('manual')
+    }
+  }, [generatePhase, generatedSkill])
+
+  /** 关闭弹窗时先停止流再重置状态 */
+  const handleClose = () => {
+    stopGeneration()
+    resetGenerateStore()
+    setManualInitialValues(null)
+    setActiveTab('command')
+    onClose()
+  }
 
   return (
     <Modal
-      title="安装 Skill"
+      title="创建 Skill"
       open={open}
-      onCancel={onClose}
+      onCancel={handleClose}
       footer={null}
       width={600}
       destroyOnClose
     >
       <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: 'command',
             label: '安装命令',
             children: (
-              <CommandTab onInstalled={onClose} addSkill={addSkill} mergeDiskSkills={mergeDiskSkills} />
+              <CommandTab onInstalled={handleClose} addSkill={addSkill} mergeDiskSkills={mergeDiskSkills} />
             ),
           },
           {
             key: 'upload',
             label: '上传文件',
-            children: <UploadTab onInstalled={onClose} addSkill={addSkill} />,
+            children: <UploadTab onInstalled={handleClose} addSkill={addSkill} />,
           },
           {
             key: 'manual',
             label: '手动填写',
-            children: <ManualTab onInstalled={onClose} addSkill={addSkill} />,
+            children: (
+              <ManualTab
+                onInstalled={handleClose}
+                addSkill={addSkill}
+                initialValues={manualInitialValues}
+              />
+            ),
+          },
+          {
+            key: 'ai-generate',
+            label: '✨ 智能生成',
+            children: <AIGenerateTab />,
           },
         ]}
       />
@@ -239,8 +278,26 @@ const UploadTab: FC<TabProps> = ({ onInstalled, addSkill }) => {
 
 /* ==================== Tab 3：手动填写 ==================== */
 
-const ManualTab: FC<TabProps> = ({ onInstalled, addSkill }) => {
+interface ManualTabProps extends TabProps {
+  /** AI 生成后填入的初始值 */
+  initialValues?: Partial<Skill> | null
+}
+
+const ManualTab: FC<ManualTabProps> = ({ onInstalled, addSkill, initialValues }) => {
   const [form] = Form.useForm()
+
+  /** 当 AI 生成结果传入时，自动填充表单 */
+  useEffect(() => {
+    if (initialValues) {
+      form.setFieldsValue({
+        name: initialValues.name || '',
+        description: initialValues.description || '',
+        readme: initialValues.readme || '',
+        tags: initialValues.tags || [],
+        triggers: initialValues.triggers || [],
+      })
+    }
+  }, [initialValues, form])
 
   /** 提交手动填写表单，写入 store + 磁盘 */
   const handleFinish = async (values: Record<string, unknown>) => {

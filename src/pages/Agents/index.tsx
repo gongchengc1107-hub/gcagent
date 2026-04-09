@@ -30,9 +30,12 @@ const AgentsPage: FC = () => {
     })
   }, [mergeDiskAgents])
 
-  /** 自定义 agent 在前，内置 agent 排最后 */
+  /** 自定义 agent 按创建时间倒序（最新在前），内置 agent 排最后 */
   const allAgents = useMemo(
-    () => [...agents.filter((a) => !a.isBuiltin), ...agents.filter((a) => a.isBuiltin)],
+    () => [
+      ...agents.filter((a) => !a.isBuiltin).sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
+      ...agents.filter((a) => a.isBuiltin).sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)),
+    ],
     [agents]
   )
 

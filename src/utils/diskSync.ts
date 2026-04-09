@@ -23,12 +23,30 @@ const BUILTIN_AGENT_NAMES = new Set([
  */
 const BUILTIN_AGENT_MODES: Record<string, Agent['mode']> = {
   build:      'primary',
-  compaction: 'subagent',
-  explore:    'subagent',
+  compaction: 'primary',
+  explore:    'primary',
   general:    'primary',
-  plan:       'subagent',
-  summary:    'subagent',
-  title:      'subagent',
+  plan:       'primary',
+  summary:    'primary',
+  title:      'primary',
+}
+
+/**
+ * 内置 agent 的 hidden 映射
+ * 纯自动调度的 agent（title/compaction/summary）默认不在聊天选择器中展示
+ */
+export const BUILTIN_AGENT_HIDDEN: Record<string, boolean> = {
+  title:      true,
+  compaction: true,
+  summary:    true,
+}
+
+/**
+ * 判断 agent 是否应该在聊天选择器中隐藏
+ * 优先使用 BUILTIN_AGENT_HIDDEN 预设，兜底使用 agent.hidden 字段
+ */
+export function isAgentHidden(agent: { backendName: string; hidden?: boolean }): boolean {
+  return BUILTIN_AGENT_HIDDEN[agent.backendName] ?? agent.hidden ?? false
 }
 
 /**
@@ -58,6 +76,8 @@ export async function syncDiskAgents(): Promise<Agent[]> {
         isFromDisk: false,
         // 内置 agent 强制使用预设 mode，防止 CLI 返回错误值
         mode: builtin ? (BUILTIN_AGENT_MODES[a.backendName] ?? a.mode) : a.mode,
+        // 内置 agent 根据预设标记是否在聊天选择器中隐藏
+        hidden: builtin ? (BUILTIN_AGENT_HIDDEN[a.backendName] ?? false) : (a.hidden ?? false),
       }
     })
 
