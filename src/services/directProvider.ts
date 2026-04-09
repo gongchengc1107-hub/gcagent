@@ -4,7 +4,7 @@
  * 通过标准的 OpenAI 兼容接口（/chat/completions）调用任意支持该协议的 AI 服务。
  * 支持 SSE 流式响应解析（text/event-stream）。
  */
-import type { ChatProvider, SendMessageParams, QuestionAsked } from './chatProvider'
+import type { ChatProvider, SendMessageParams } from './chatProvider'
 import type { ChatMessage } from '@/types'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 
@@ -91,8 +91,8 @@ function buildMessages(
     let content = ''
     if (typeof msg.content === 'string') {
       content = msg.content
-    } else if (Array.isArray(msg.content)) {
-      content = msg.content
+    } else if (Array.isArray(msg.content as any)) {
+      content = (msg.content as any)
         .filter((c: any) => c.type === 'text')
         .map((c: any) => c.text)
         .join('\n')
@@ -139,7 +139,7 @@ export class DirectProvider implements ChatProvider {
    * 发送消息 — 真实 HTTP 调用
    */
   sendMessage(params: SendMessageParams): () => void {
-    const { content, messages: historyMessages, model: overrideModel, systemPrompt, onChunk, onComplete, onError, onQuestion } = params
+    const { content, messages: historyMessages, model: overrideModel, systemPrompt, onChunk, onComplete, onError } = params
     const { baseUrl, apiKey, model: defaultModel } = getDirectConfig()
     const model = overrideModel || defaultModel
 

@@ -1,5 +1,5 @@
 /** Provider 服务 — 真实实现 */
-import type { IProviderService } from '../interfaces'
+import type { IProviderService } from './interfaces/IProviderService'
 
 export class RealProviderService implements IProviderService {
   /**

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pkill *)",
+      "Bash(sleep *)",
+      "Bash(open *)",
+      "Bash(ls *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(cat *)",
+      "Bash(rm *)",
+      "Bash(npm run *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  },
+  "$version": 3
+}
