@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useEffect } from 'react'
 import type { IAuthService, IChatService, IMCPService, IProviderService, IFileService } from './interfaces'
 import { MockAuthService, MockChatService, MockMCPService, MockProviderService, MockFileService } from './mock'
+import { RealProviderService } from './RealProviderService'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useModelStore } from '@/stores/useModelStore'
 import { useSettingsStore } from '@/stores/useSettingsStore'
@@ -51,13 +52,22 @@ if (typeof window !== 'undefined' && window.electronAPI) {
  */
 export function ServiceProvider({ children }: { children: React.ReactNode }) {
   const services = useMemo<ServiceContextType>(
-    () => ({
-      authService: new MockAuthService(),
-      chatService: new MockChatService(),
-      mcpService: new MockMCPService(),
-      providerService: new MockProviderService(),
-      fileService: new MockFileService()
-    }),
+    () => {
+      const providerSettingMode = useSettingsStore.getState().providerSettingMode
+      const providerService: IProviderService =
+        providerSettingMode === 'direct'
+          ? new RealProviderService()
+          : new MockProviderService()
+
+      return {
+        authService: new MockAuthService(),
+        chatService: new MockChatService(),
+        mcpService: new MockMCPService(),
+        providerService,
+        fileService: new MockFileService()
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
 

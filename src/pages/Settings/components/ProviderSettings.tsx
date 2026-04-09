@@ -8,6 +8,7 @@ import {
   LoadingOutlined
 } from '@ant-design/icons'
 import { useSettingsStore } from '@/stores'
+import { useServices } from '@/services/ServiceProvider'
 import type { ProviderSettingMode } from '@/types'
 
 /** AI Provider 设置页 */
@@ -30,6 +31,8 @@ const ProviderSettings: FC = () => {
     setConnectionStatus
   } = useSettingsStore()
 
+  const { providerService } = useServices()
+
   /** 新模型输入 */
   const [newModel, setNewModel] = useState('')
 
@@ -42,14 +45,28 @@ const ProviderSettings: FC = () => {
     }, 2000)
   }, [setServeStatus])
 
-  /** 测试连接（Mock） */
-  const handleTestConnection = useCallback(() => {
+  /** 测试连接（真实调用） */
+  const handleTestConnection = useCallback(async () => {
+    if (!apiBaseUrl.trim()) {
+      message.warning('请先输入 API Base URL')
+      return
+    }
     setConnectionStatus('testing')
-    setTimeout(() => {
-      setConnectionStatus('success')
-      message.success('连接成功')
-    }, 1000)
-  }, [setConnectionStatus])
+    try {
+      const result = await providerService.testConnection(apiBaseUrl, apiKey)
+      if (result.success) {
+        setConnectionStatus('success')
+        message.success('连接成功')
+      } else {
+        setConnectionStatus('failed', result.error)
+        message.error(result.error ?? '连接失败')
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err)
+      setConnectionStatus('failed', error)
+      message.error(error)
+    }
+  }, [apiBaseUrl, apiKey, providerService, setConnectionStatus])
 
   /** 添加自定义模型 */
   const handleAddModel = useCallback(() => {

@@ -81,7 +81,11 @@ export const useSettingsStore = create<SettingsState>()(
 
       /* ---- Provider 设置 ---- */
       setProviderSettingMode: (mode: ProviderSettingMode) => {
-        set({ providerSettingMode: mode })
+        set({
+          providerSettingMode: mode,
+          // 同步更新 providerMode：'direct' → 'cloud'，'codemaker' → 'local'
+          providerMode: mode === 'direct' ? 'cloud' : 'local'
+        })
       },
 
       setServeStatus: (status: ServeStatus) => {
