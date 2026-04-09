@@ -7,7 +7,7 @@ on:
       - 'v*'
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # 允许手动触发测试
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -16,7 +16,7 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     permissions:
-      contents: write  # 必需：允许上传 Release
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
