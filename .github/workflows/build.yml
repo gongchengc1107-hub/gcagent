@@ -27,6 +27,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # 👇 新增：强制使用 Python 3.11（兼容 node-gyp）
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install Dependencies
         run: npm ci
 
