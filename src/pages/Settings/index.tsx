@@ -12,8 +12,8 @@ const SettingsPage: FC = () => {
       <div className="mx-auto w-full max-w-3xl space-y-10">
         <AccountSettings />
         <ProviderSettings />
-        <AppearanceSettings />
         <UsageStats />
+        <AppearanceSettings />
         <DataManagement />
       </div>
     </div>
