@@ -128,6 +128,7 @@ const MessageInput: FC = () => {
   const { skills } = useSkillStore()
   const { availableModels, currentModel, loading: modelsLoading, setCurrentModel } = useModelStore()
   const { sendMessage, stopGeneration, isStreaming } = useSendMessage()
+  const { providerSettingMode } = useSettingsStore()
 
   const currentSession = sessions.find((s) => s.id === currentSessionId)
   /** 当前会话的 pending question 队列 */
@@ -625,54 +626,56 @@ const MessageInput: FC = () => {
     setSkillMenuActiveIndex(0)
   }, [skillFilter])
 
-  // ── 模型选项 ─────────────────────────────────────────────────
+  // ── 模型选项（根据当前模式过滤）─────────────────────────────────
 
   const modelOptions = useMemo(():
     { label: string; options: { label: string; value: string }[] }[] => {
     const options: { label: string; options: { label: string; value: string }[] }[] = []
-    
-    // 添加多模型配置选项（优先显示）
-    const multiModels = useSettingsStore.getState().multiModels.filter(m => m.enabled)
-    if (multiModels.length > 0) {
-      const providerLabels: Record<ModelProviderType, string> = {
-        qwen: '通义千问',
-        doubao: '豆包',
-        deepseek: 'DeepSeek',
-        kling: '可灵',
-        kimi: 'Kimi',
-        minimax: 'MiniMax',
-        openai: 'OpenAI',
-        custom: '自定义'
-      }
-      
-      const groups: Record<string, Array<{ id: string; name: string; modelId: string }>> = {}
-      for (const m of multiModels) {
-        const label = providerLabels[m.providerType] || '自定义'
-        if (!groups[label]) groups[label] = []
-        groups[label].push({ id: m.id, name: m.name, modelId: m.modelId })
-      }
-      
-      Object.entries(groups).forEach(([provider, items]) => {
-        options.push({
-          label: `${provider}（直连）`,
-          options: items.map((m) => ({ 
-            label: m.name, 
-            value: `direct://multi/${m.id}`
-          }))
+
+    // 直连模式：只显示多模型配置
+    if (providerSettingMode === 'direct') {
+      const multiModels = useSettingsStore.getState().multiModels.filter(m => m.enabled)
+      if (multiModels.length > 0) {
+        const providerLabels: Record<ModelProviderType, string> = {
+          qwen: '通义千问',
+          doubao: '豆包',
+          deepseek: 'DeepSeek',
+          kling: '可灵',
+          kimi: 'Kimi',
+          minimax: 'MiniMax',
+          openai: 'OpenAI',
+          custom: '自定义'
+        }
+
+        const groups: Record<string, Array<{ id: string; name: string; modelId: string }>> = {}
+        for (const m of multiModels) {
+          const label = providerLabels[m.providerType] || '自定义'
+          if (!groups[label]) groups[label] = []
+          groups[label].push({ id: m.id, name: m.name, modelId: m.modelId })
+        }
+
+        Object.entries(groups).forEach(([provider, items]) => {
+          options.push({
+            label: `${provider}（直连）`,
+            options: items.map((m) => ({
+              label: m.name,
+              value: `direct://multi/${m.id}`
+            }))
+          })
         })
-      })
-    }
-    
-    // 添加原有的 Codemaker 模型选项
-    if (availableModels.length === 0) {
-      const fallback = currentModel || DEFAULT_MODEL
-      options.push({ label: 'Codemaker', options: [{ label: modelLabel(fallback), value: fallback }] })
+      }
     } else {
-      options.push(...buildModelOptions(availableModels))
+      // Codemaker 模式：只显示 Codemaker 模型
+      if (availableModels.length === 0) {
+        const fallback = currentModel || DEFAULT_MODEL
+        options.push({ label: 'Codemaker', options: [{ label: modelLabel(fallback), value: fallback }] })
+      } else {
+        options.push(...buildModelOptions(availableModels))
+      }
     }
-    
+
     return options
-  }, [availableModels, currentModel])
+  }, [availableModels, currentModel, providerSettingMode])
 
   // ── 当前 Agent 信息（用于显示 @ 按钮状态）───────────────────
 

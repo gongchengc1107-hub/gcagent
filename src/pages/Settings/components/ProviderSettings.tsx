@@ -2,6 +2,7 @@ import { type FC, useState, useCallback } from 'react'
 import { Segmented, Input, Button, Tag, Badge, message, Modal, Card, Select, Tooltip } from 'antd'
 import {
   ReloadOutlined,
+  PlusOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
   LoadingOutlined,
@@ -508,121 +509,6 @@ const ProviderSettings: FC = () => {
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* 直连模式面板（原有配置） */}
-      {providerSettingMode === 'direct' && (
-        <div
-          className="space-y-5 rounded-lg border p-6"
-          style={{
-            borderColor: 'var(--border-primary)',
-            backgroundColor: 'var(--bg-secondary)'
-          }}
-        >
-          {/* API Base URL */}
-          <div className="space-y-1.5">
-            <label
-              className="text-sm font-medium"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              API Base URL
-            </label>
-            <Input
-              value={apiBaseUrl}
-              onChange={(e) => setApiBaseUrl(e.target.value)}
-              placeholder="https://api.openai.com/v1"
-            />
-          </div>
-
-          {/* API Key */}
-          <div className="space-y-1.5">
-            <label
-              className="text-sm font-medium"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              API Key
-            </label>
-            <Input.Password
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
-            />
-          </div>
-
-          {/* 测试连接 */}
-          <div className="flex items-center gap-3">
-            <Button
-              type="primary"
-              onClick={handleTestConnection}
-              loading={connectionStatus === 'testing'}
-            >
-              测试连接
-            </Button>
-            {connectionStatus === 'success' && (
-              <span className="flex items-center gap-1 text-sm text-green-500">
-                <CheckCircleFilled /> 连接成功
-              </span>
-            )}
-            {connectionStatus === 'failed' && (
-              <span className="flex items-center gap-1 text-sm text-red-500">
-                <CloseCircleFilled /> {connectionError ?? '连接失败'}
-              </span>
-            )}
-            {connectionStatus === 'testing' && (
-              <span
-                className="flex items-center gap-1 text-sm"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <LoadingOutlined /> 测试中...
-              </span>
-            )}
-          </div>
-
-          {/* 自定义模型列表 */}
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              自定义模型
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {customModels.map((model) => (
-                <Tag
-                  key={model}
-                  closable
-                  onClose={() => removeCustomModel(model)}
-                >
-                  {model}
-                </Tag>
-              ))}
-              {customModels.length === 0 && (
-                <span
-                  className="text-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  暂无自定义模型
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={newModel}
-                onChange={(e) => setNewModel(e.target.value)}
-                placeholder="输入模型名称，如 gpt-4o"
-                onPressEnter={handleAddModel}
-                className="flex-1"
-              />
-              <Button
-                icon={<PlusOutlined />}
-                onClick={handleAddModel}
-                disabled={!newModel.trim()}
-              >
-                添加
-              </Button>
-            </div>
-          </div>
         </div>
       )}
 
