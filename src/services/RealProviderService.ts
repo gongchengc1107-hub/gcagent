@@ -28,6 +28,14 @@ export class RealProviderService implements IProviderService {
       clearTimeout(timeoutId)
 
       if (!res.ok) {
+        // 401 说明服务器可达但认证失败，403 说明服务器可达但权限不足
+        // 这些都证明连接是通的
+        if (res.status === 401 || res.status === 403) {
+          return {
+            success: false,
+            error: `服务器已连接，但认证失败（${res.status}）。请检查 API Key 是否正确`
+          }
+        }
         // 如果 /models 返回 404，尝试根路径作为备选
         if (res.status === 404) {
           return await this.testRootEndpoint(normalizedBaseUrl, apiKey)
