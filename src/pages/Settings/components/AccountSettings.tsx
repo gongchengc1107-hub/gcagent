@@ -1,35 +1,17 @@
-import { type FC, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Avatar, Button, Divider, Modal } from 'antd'
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
+import { type FC } from 'react'
+import { Avatar } from 'antd'
+import { UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores'
 
 /** 账户设置页 */
 const AccountSettings: FC = () => {
-  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
 
   /** 获取用户名首字母（中文取第一个字） */
   const getInitial = (name?: string) => {
     if (!name) return '?'
     return name.charAt(0).toUpperCase()
   }
-
-  /** 退出登录确认 */
-  const handleLogout = useCallback(() => {
-    Modal.confirm({
-      title: '确认退出',
-      content: '退出后需要重新登录，确认退出吗？',
-      okText: '退出',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        logout()
-        navigate('/login', { replace: true })
-      }
-    })
-  }, [logout, navigate])
 
   return (
     <div className="max-w-xl space-y-6">
@@ -76,19 +58,6 @@ const AccountSettings: FC = () => {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* 退出登录区域 */}
-      <Divider style={{ borderColor: 'var(--border-primary)' }} />
-      <div>
-        <Button
-          danger
-          type="primary"
-          icon={<LogoutOutlined />}
-          onClick={handleLogout}
-        >
-          退出登录
-        </Button>
       </div>
     </div>
   )
