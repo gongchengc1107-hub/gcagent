@@ -56,16 +56,12 @@ const ProviderSettings: FC = () => {
     providerType: ModelProviderType
     apiUrl: string
     apiKey: string
-    accessKeyId: string
-    accessKeySecret: string
     modelId: string
   }>({
     name: '',
     providerType: 'qwen',
-    apiUrl: '',
+    apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     apiKey: '',
-    accessKeyId: '',
-    accessKeySecret: '',
     modelId: ''
   })
 
@@ -115,10 +111,8 @@ const ProviderSettings: FC = () => {
     setFormData({
       name: '',
       providerType: 'qwen',
-      apiUrl: '',
+      apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       apiKey: '',
-      accessKeyId: '',
-      accessKeySecret: '',
       modelId: ''
     })
     setIsModalOpen(true)
@@ -131,9 +125,7 @@ const ProviderSettings: FC = () => {
       name: model.name,
       providerType: model.providerType,
       apiUrl: model.apiUrl,
-      apiKey: model.apiKey || '',
-      accessKeyId: model.accessKeyId || '',
-      accessKeySecret: model.accessKeySecret || '',
+      apiKey: model.apiKey,
       modelId: model.modelId
     })
     setIsModalOpen(true)
@@ -145,6 +137,11 @@ const ProviderSettings: FC = () => {
       message.warning('请先配置 API Base URL')
       return
     }
+    if (!model.apiKey.trim()) {
+      message.warning('请先配置 API Key')
+      return
+    }
+    
     setMultiModelConnectionStatus(model.id, 'testing')
     try {
       const result = await providerService.testConnection(model.apiUrl, model.apiKey)
@@ -172,44 +169,31 @@ const ProviderSettings: FC = () => {
       message.warning('请输入 API Base URL')
       return
     }
+    if (!formData.apiKey.trim()) {
+      message.warning('请输入 API Key')
+      return
+    }
     if (!formData.modelId.trim()) {
       message.warning('请输入模型 ID')
       return
     }
-    
-    // 验证认证字段
-    const isQwen = formData.providerType === 'qwen'
-    if (isQwen && (!formData.accessKeyId.trim() || !formData.accessKeySecret.trim())) {
-      message.warning('请输入 AccessKey ID 和 AccessKey Secret')
-      return
-    }
-    if (!isQwen && !formData.apiKey.trim()) {
-      message.warning('请输入 API Key')
-      return
-    }
 
     if (editingModel) {
-      // 更新现有模型
       updateMultiModel(editingModel.id, {
         name: formData.name.trim(),
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
-        apiKey: isQwen ? undefined : formData.apiKey.trim(),
-        accessKeyId: isQwen ? formData.accessKeyId.trim() : undefined,
-        accessKeySecret: isQwen ? formData.accessKeySecret.trim() : undefined,
+        apiKey: formData.apiKey.trim(),
         modelId: formData.modelId.trim()
       })
       message.success('模型已更新')
     } else {
-      // 添加新模型
       const newModel: ModelConfig = {
         id: `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: formData.name.trim(),
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
-        apiKey: isQwen ? undefined : formData.apiKey.trim(),
-        accessKeyId: isQwen ? formData.accessKeyId.trim() : undefined,
-        accessKeySecret: isQwen ? formData.accessKeySecret.trim() : undefined,
+        apiKey: formData.apiKey.trim(),
         modelId: formData.modelId.trim(),
         enabled: true
       }
@@ -611,10 +595,10 @@ const ProviderSettings: FC = () => {
                   openai: 'https://api.openai.com/v1',
                   custom: ''
                 }
-                setFormData({ 
-                  ...formData, 
+                setFormData({
+                  ...formData,
                   providerType: val,
-                  apiUrl: formData.apiUrl || defaultUrls[val]
+                  apiUrl: defaultUrls[val]
                 })
               }}
               options={[
@@ -631,7 +615,7 @@ const ProviderSettings: FC = () => {
             />
           </div>
 
-          {/* API Base URL */}
+          {/* API Base URL（可展开编辑） */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               API Base URL
@@ -639,50 +623,21 @@ const ProviderSettings: FC = () => {
             <Input
               value={formData.apiUrl}
               onChange={(e) => setFormData({ ...formData, apiUrl: e.target.value })}
-              placeholder="https://api.openai.com/v1"
+              placeholder="自动填充，可手动修改"
             />
           </div>
 
-          {/* 认证字段 - 根据提供者类型显示不同 */}
-          {formData.providerType === 'qwen' ? (
-            <>
-              {/* AccessKey ID（千问） */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  AccessKey ID
-                </label>
-                <Input
-                  value={formData.accessKeyId}
-                  onChange={(e) => setFormData({ ...formData, accessKeyId: e.target.value })}
-                  placeholder="LTAI..."
-                />
-              </div>
-
-              {/* AccessKey Secret（千问） */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  AccessKey Secret
-                </label>
-                <Input.Password
-                  value={formData.accessKeySecret}
-                  onChange={(e) => setFormData({ ...formData, accessKeySecret: e.target.value })}
-                  placeholder="AccessKey Secret"
-                />
-              </div>
-            </>
-          ) : (
-            /* API Key（其他 provider） */
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                API Key
-              </label>
-              <Input.Password
-                value={formData.apiKey}
-                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                placeholder="sk-..."
-              />
-            </div>
-          )}
+          {/* API Key */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              API Key
+            </label>
+            <Input.Password
+              value={formData.apiKey}
+              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+              placeholder="sk-..."
+            />
+          </div>
 
           {/* 模型 ID */}
           <div className="space-y-1.5">
