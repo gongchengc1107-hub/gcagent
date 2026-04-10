@@ -113,28 +113,33 @@ const Layout: FC = () => {
           className="border-t px-2 py-3"
           style={{ borderColor: 'rgba(255,255,255,0.1)' }}
         >
-          {/* 主题切换 */}
+          {/* 设置按钮 */}
           <button
-            onClick={toggleTheme}
+            onClick={() => navigate('/settings')}
             className="mb-1 flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors"
-            style={{ color: 'var(--sidebar-text-muted)' }}
+            style={{
+              color: currentPath === '/settings' ? 'var(--sidebar-text)' : 'var(--sidebar-text-muted)',
+              backgroundColor: currentPath === '/settings' ? 'var(--sidebar-active)' : 'transparent'
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'
+              if (currentPath !== '/settings') {
+                e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+              if (currentPath !== '/settings') {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }
             }}
           >
-            <BulbOutlined className="text-base" />
-            {!collapsed && (
-              <span className="ml-3">{theme === 'light' ? '暗色模式' : '亮色模式'}</span>
-            )}
+            <SettingOutlined className="text-base" />
+            {!collapsed && <span className="ml-3">设置</span>}
           </button>
 
-          {/* 折叠按钮 */}
+          {/* 折叠按钮（在最底部） */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="mb-1 flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors"
+            className="flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors"
             style={{ color: 'var(--sidebar-text-muted)' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'
@@ -152,20 +157,6 @@ const Layout: FC = () => {
               </>
             )}
           </button>
-
-          {/* 用户头像区域 */}
-          <div
-            className="flex items-center rounded-md px-3 py-2.5"
-            style={{ color: 'var(--sidebar-text-muted)' }}
-          >
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ backgroundColor: 'var(--sidebar-hover)' }}
-            >
-              <UserOutlined className="text-sm" />
-            </div>
-            {!collapsed && <span className="ml-3 text-sm">未登录</span>}
-          </div>
         </div>
       </aside>
 
