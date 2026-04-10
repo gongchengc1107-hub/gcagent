@@ -84,41 +84,6 @@ function buildModelOptions(
   }))
 }
 
-/** 构建多模型配置选项 */
-function buildMultiModelOptions(): { label: string; options: { label: string; value: string }[] }[] {
-  const state = useSettingsStore.getState()
-  const multiModels = state.multiModels.filter(m => m.enabled)
-  
-  if (multiModels.length === 0) return []
-  
-  const providerLabels: Record<ModelProviderType, string> = {
-    qwen: '通义千问',
-    doubao: '豆包',
-    deepseek: 'DeepSeek',
-    kling: '可灵',
-    kimi: 'Kimi',
-    minimax: 'MiniMax',
-    openai: 'OpenAI',
-    custom: '自定义'
-  }
-  
-  // 按提供者类型分组
-  const groups: Record<string, Array<{ id: string; name: string; modelId: string }>> = {}
-  for (const m of multiModels) {
-    const label = providerLabels[m.providerType] || '自定义'
-    if (!groups[label]) groups[label] = []
-    groups[label].push({ id: m.id, name: m.name, modelId: m.modelId })
-  }
-  
-  return Object.entries(groups).map(([provider, items]) => ({
-    label: `${provider}（直连）`,
-    options: items.map((m) => ({ 
-      label: m.name, 
-      value: `direct://multi/${m.id}` // 使用特殊格式标识多模型
-    }))
-  }))
-}
-
 /** 当前打开的底部弹出层类型 */
 type ActivePopup = 'agent' | 'skill' | null
 
@@ -667,9 +632,35 @@ const MessageInput: FC = () => {
     const options: { label: string; options: { label: string; value: string }[] }[] = []
     
     // 添加多模型配置选项（优先显示）
-    const multiModelOptions = buildMultiModelOptions()
-    if (multiModelOptions.length > 0) {
-      options.push(...multiModelOptions)
+    const multiModels = useSettingsStore.getState().multiModels.filter(m => m.enabled)
+    if (multiModels.length > 0) {
+      const providerLabels: Record<ModelProviderType, string> = {
+        qwen: '通义千问',
+        doubao: '豆包',
+        deepseek: 'DeepSeek',
+        kling: '可灵',
+        kimi: 'Kimi',
+        minimax: 'MiniMax',
+        openai: 'OpenAI',
+        custom: '自定义'
+      }
+      
+      const groups: Record<string, Array<{ id: string; name: string; modelId: string }>> = {}
+      for (const m of multiModels) {
+        const label = providerLabels[m.providerType] || '自定义'
+        if (!groups[label]) groups[label] = []
+        groups[label].push({ id: m.id, name: m.name, modelId: m.modelId })
+      }
+      
+      Object.entries(groups).forEach(([provider, items]) => {
+        options.push({
+          label: `${provider}（直连）`,
+          options: items.map((m) => ({ 
+            label: m.name, 
+            value: `direct://multi/${m.id}`
+          }))
+        })
+      })
     }
     
     // 添加原有的 Codemaker 模型选项
