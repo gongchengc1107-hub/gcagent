@@ -1,9 +1,7 @@
 import { type FC } from 'react'
-import { Avatar } from 'antd'
-import { UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores'
 
-/** 账户设置页 */
+/** 账户设置页 - OpenCode 终端风格 */
 const AccountSettings: FC = () => {
   const user = useAuthStore((s) => s.user)
 
@@ -14,52 +12,104 @@ const AccountSettings: FC = () => {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
-      <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-        账户设置
-      </h2>
-
-      {/* 用户信息卡片 */}
-      <div
-        className="rounded-lg border p-6"
-        style={{
-          borderColor: 'var(--border-primary)',
-          backgroundColor: 'var(--bg-secondary)'
-        }}
-      >
-        <div className="flex items-center gap-4">
-          {/* 头像 */}
-          <Avatar
-            size={64}
-            icon={!user?.username ? <UserOutlined /> : undefined}
-            style={{
-              backgroundColor: 'var(--accent-primary)',
-              color: '#fff',
-              fontSize: 24,
-              fontWeight: 600
-            }}
-          >
-            {user?.username ? getInitial(user.username) : null}
-          </Avatar>
-
-          {/* 用户名和邮箱 */}
-          <div className="flex flex-col">
-            <span
-              className="text-lg font-semibold"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {user?.username ?? '未登录'}
-            </span>
-            <span
-              className="mt-0.5 text-sm"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              {user?.email ?? '暂无邮箱信息'}
-            </span>
-          </div>
+    <section className="space-y-6">
+      {/* 区块标题 */}
+      <div>
+        <h2
+          className="font-bold"
+          style={{
+            fontSize: '16px',
+            lineHeight: 1.5,
+            color: 'var(--text-primary)'
+          }}
+        >
+          ACCOUNT
+        </h2>
+        <div
+          className="mt-1 text-sm"
+          style={{
+            color: 'var(--text-muted)',
+            lineHeight: 2.0
+          }}
+        >
+          // 账户信息和基本设置
         </div>
       </div>
-    </div>
+
+      {/* 用户信息 - 纯文本布局，无卡片边框 */}
+      <div className="space-y-4">
+        {/* 用户名 */}
+        <div className="flex items-baseline gap-4">
+          <span
+            className="min-w-[120px] text-sm font-medium"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            username
+          </span>
+          <span
+            className="font-medium"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {user?.username ?? '未登录'}
+          </span>
+        </div>
+
+        {/* 邮箱 */}
+        <div className="flex items-baseline gap-4">
+          <span
+            className="min-w-[120px] text-sm font-medium"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            email
+          </span>
+          <span style={{ color: 'var(--text-primary)' }}>
+            {user?.email ?? '暂无邮箱信息'}
+          </span>
+        </div>
+
+        {/* 用户标识 */}
+        <div className="flex items-baseline gap-4">
+          <span
+            className="min-w-[120px] text-sm font-medium"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            user_id
+          </span>
+          <code
+            className="text-sm"
+            style={{
+              color: 'var(--text-muted)',
+              backgroundColor: 'var(--bg-secondary)',
+              padding: '2px 8px',
+              borderRadius: '4px'
+            }}
+          >
+            {user?.id ?? 'N/A'}
+          </code>
+        </div>
+
+        {/* 头像预览 */}
+        {user?.username && (
+          <div className="flex items-baseline gap-4">
+            <span
+              className="min-w-[120px] text-sm font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              avatar
+            </span>
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded text-lg font-bold"
+              style={{
+                backgroundColor: 'var(--accent-primary)',
+                color: '#fdfcfc'
+              }}
+            >
+              {getInitial(user.username)}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 

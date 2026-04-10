@@ -1,66 +1,82 @@
 /* ===== Light Theme (默认) ===== */
 :root,
 html[data-theme='light'] {
+  /* OpenCode 暖色主题 */
   /* 背景色 */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f7f7f8;
-  --bg-sidebar: #202123;
+  --bg-primary: #fdfcfc;
+  --bg-secondary: #f1eeee;
+  --bg-tertiary: #f8f7f7;
+  --bg-sidebar: #201d1d;
 
   /* 文字色 */
-  --text-primary: #1a1a1a;
-  --text-secondary: #4a4a4a;
-  --text-muted: #9a9a9a;
+  --text-primary: #201d1d;
+  --text-secondary: #424245;
+  --text-muted: #6e6e73;
 
   /* 侧边栏文字色 */
-  --sidebar-text: #ececf1;
-  --sidebar-text-muted: #8e8ea0;
-  --sidebar-hover: #2a2b32;
-  --sidebar-active: #343541;
+  --sidebar-text: #fdfcfc;
+  --sidebar-text-muted: #9a9898;
+  --sidebar-hover: #302c2c;
+  --sidebar-active: #201d1d;
 
   /* 边框色 */
-  --border-primary: #e5e5e5;
-  --border-secondary: #f0f0f0;
+  --border-primary: rgba(15, 0, 0, 0.12);
+  --border-secondary: #9a9898;
+  --border-outline: #646262;
 
-  /* 强调色 */
-  --accent-primary: #10a37f;
-  --accent-hover: #0d8c6d;
+  /* 强调色 (Apple HIG Blue) */
+  --accent-primary: #007aff;
+  --accent-hover: #0056b3;
+  --accent-active: #004085;
 
-  /* 状态色 */
-  --success: #52c41a;
-  --warning: #faad14;
-  --error: #ff4d4f;
-  --info: #1677ff;
+  /* 状态色 (Apple HIG) */
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --warning-hover: #cc7f08;
+  --warning-active: #995f06;
+  --error: #ff3b30;
+  --error-hover: #d70015;
+  --error-active: #a50011;
+  --info: #007aff;
 }
 
 /* ===== Dark Theme ===== */
 html[data-theme='dark'] {
+  /* OpenCode 暖色暗色主题 */
   /* 背景色 */
-  --bg-primary: #343541;
-  --bg-secondary: #40414f;
-  --bg-sidebar: #202123;
+  --bg-primary: #201d1d;
+  --bg-secondary: #302c2c;
+  --bg-tertiary: #3a3636;
+  --bg-sidebar: #1a1818;
 
   /* 文字色 */
-  --text-primary: #ececf1;
-  --text-secondary: #c5c5d2;
-  --text-muted: #8e8ea0;
+  --text-primary: #fdfcfc;
+  --text-secondary: #9a9898;
+  --text-muted: #6e6e73;
 
   /* 侧边栏文字色 */
-  --sidebar-text: #ececf1;
-  --sidebar-text-muted: #8e8ea0;
-  --sidebar-hover: #2a2b32;
-  --sidebar-active: #343541;
+  --sidebar-text: #fdfcfc;
+  --sidebar-text-muted: #9a9898;
+  --sidebar-hover: #302c2c;
+  --sidebar-active: #3a3636;
 
   /* 边框色 */
-  --border-primary: #4e4f60;
-  --border-secondary: #565869;
+  --border-primary: rgba(15, 0, 0, 0.12);
+  --border-secondary: #646262;
+  --border-outline: #9a9898;
 
-  /* 强调色 */
-  --accent-primary: #10a37f;
-  --accent-hover: #1ab98f;
+  /* 强调色 (Apple HIG Blue) */
+  --accent-primary: #007aff;
+  --accent-hover: #0056b3;
+  --accent-active: #004085;
 
-  /* 状态色 */
-  --success: #52c41a;
-  --warning: #faad14;
-  --error: #ff4d4f;
-  --info: #1677ff;
+  /* 状态色 (Apple HIG) */
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --warning-hover: #cc7f08;
+  --warning-active: #995f06;
+  --error: #ff3b30;
+  --error-hover: #d70015;
+  --error-active: #a50011;
+  --info: #007aff;
 }

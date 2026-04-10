@@ -1,7 +1,6 @@
 import { type FC, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Divider, Modal } from 'antd'
-import { LogoutOutlined } from '@ant-design/icons'
+import { Modal } from 'antd'
 import { useAuthStore, useSettingsStore } from '@/stores'
 import AccountSettings from './components/AccountSettings'
 import ProviderSettings from './components/ProviderSettings'
@@ -10,7 +9,7 @@ import DirectUsageStats from './components/DirectUsageStats'
 import AppearanceSettings from './components/AppearanceSettings'
 import DataManagement from './components/DataManagement'
 
-/** 设置页 - 单页布局，所有内容直接展示 */
+/** 设置页 - OpenCode 终端美学风格 */
 const SettingsPage: FC = () => {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
@@ -32,25 +31,78 @@ const SettingsPage: FC = () => {
   }, [logout, navigate])
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <div className="mx-auto w-full max-w-3xl space-y-10">
-        <AccountSettings />
-        <ProviderSettings />
-        {providerSettingMode === 'direct' ? <DirectUsageStats /> : <UsageStats />}
-        <AppearanceSettings />
-        <DataManagement />
-
-        {/* 退出登录 */}
-        <Divider style={{ borderColor: 'var(--border-primary)' }} />
-        <div className="pb-8">
-          <Button
-            danger
-            type="primary"
-            icon={<LogoutOutlined />}
-            onClick={handleLogout}
+    <div
+      className="flex h-full flex-col overflow-y-auto"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        padding: '48px 24px'
+      }}
+    >
+      <div className="mx-auto w-full max-w-[800px]">
+        {/* 页面标题 */}
+        <div className="mb-12">
+          <h1
+            className="font-bold"
+            style={{
+              fontSize: '2.38rem',
+              lineHeight: 1.5,
+              color: 'var(--text-primary)'
+            }}
           >
-            退出登录
-          </Button>
+            Settings
+          </h1>
+          <div
+            className="mt-2 text-sm"
+            style={{
+              color: 'var(--text-secondary)',
+              lineHeight: 2.0
+            }}
+          >
+            // 配置你的账户和偏好设置
+          </div>
+        </div>
+
+        {/* 内容区域 - 使用 generous spacing */}
+        <div className="space-y-12">
+          <AccountSettings />
+          <ProviderSettings />
+          {providerSettingMode === 'direct' ? <DirectUsageStats /> : <UsageStats />}
+          <AppearanceSettings />
+          <DataManagement />
+
+          {/* 分隔线 */}
+          <div
+            className="my-12 h-[1px]"
+            style={{ backgroundColor: 'var(--border-primary)' }}
+          />
+
+          {/* 退出登录 */}
+          <div className="pb-8">
+            <button
+              onClick={handleLogout}
+              className="rounded transition-opacity duration-150"
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--error)',
+                fontSize: '16px',
+                fontWeight: 500,
+                lineHeight: 2.0,
+                padding: '4px 20px',
+                border: `1px solid var(--error)`,
+                borderRadius: '4px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--error)'
+                e.currentTarget.style.color = '#fdfcfc'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.color = 'var(--error)'
+              }}
+            >
+              ⚠ 退出登录
+            </button>
+          </div>
         </div>
       </div>
     </div>

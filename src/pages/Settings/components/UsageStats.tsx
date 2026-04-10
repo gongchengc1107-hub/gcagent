@@ -1,5 +1,5 @@
 import { type FC, useState, useCallback, useEffect } from 'react'
-import { Button, Skeleton, Progress, Table, Tag } from 'antd'
+import { Skeleton } from 'antd'
 import {
   ReloadOutlined,
   ThunderboltOutlined,
@@ -79,63 +79,96 @@ const UsageStats: FC = () => {
 
   const quotaSection = quota ? (
     <div
-      className="rounded-lg border p-6 space-y-4"
-      style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
+      className="rounded p-6 space-y-4"
+      style={{
+        border: `1px solid var(--border-primary)`,
+        backgroundColor: 'var(--bg-secondary)'
+      }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <DollarOutlined style={{ color: '#10a37f', fontSize: 18 }} />
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-            本月配额使用
+          <DollarOutlined style={{ color: 'var(--success)', fontSize: 18 }} />
+          <span className="font-bold" style={{ color: 'var(--text-primary)' }}>
+            QUOTA USAGE
           </span>
-          <Tag color="green">{quota.user}</Tag>
+          <span
+            className="rounded px-2 py-0.5 text-xs"
+            style={{
+              backgroundColor: 'var(--success)',
+              color: '#fdfcfc'
+            }}
+          >
+            {quota.user}
+          </span>
         </div>
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {quota.current.year} 年 {quota.current.month} 月
         </span>
       </div>
 
-      <Progress
-        percent={Math.min(quota.current.percentage, 100)}
-        strokeColor={quota.current.percentage >= 90 ? '#ff4d4f' : '#10a37f'}
-        trailColor="var(--bg-tertiary)"
-        format={(p) => `${p?.toFixed(1)}%`}
-      />
+      {/* 进度条 */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span style={{ color: 'var(--text-secondary)' }}>使用进度</span>
+          <span style={{ color: 'var(--text-primary)' }}>
+            {Math.min(quota.current.percentage, 100).toFixed(1)}%
+          </span>
+        </div>
+        <div
+          className="h-2 w-full overflow-hidden rounded"
+          style={{ backgroundColor: 'var(--bg-tertiary)' }}
+        >
+          <div
+            className="h-full rounded transition-all duration-300"
+            style={{
+              width: `${Math.min(quota.current.percentage, 100)}%`,
+              backgroundColor: quota.current.percentage >= 90 ? 'var(--error)' : 'var(--success)'
+            }}
+          />
+        </div>
+      </div>
 
+      {/* 统计数字 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="text-center">
+        <div className="space-y-1 text-center">
           <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {fmtCost(quota.current.used)}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>已使用</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>已使用</div>
         </div>
-        <div className="text-center">
+        <div className="space-y-1 text-center">
           <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {fmtCost(quota.current.remaining)}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>剩余</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>剩余</div>
         </div>
-        <div className="text-center">
+        <div className="space-y-1 text-center">
           <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {fmtCost(quota.quota.monthly)}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>月度上限</div>
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>月度上限</div>
         </div>
       </div>
 
       {/* 历史记录 */}
       {quota.history.length > 0 && (
-        <div>
-          <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+        <div className="space-y-2">
+          <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
             历史月份
           </div>
           <div className="flex flex-wrap gap-2">
             {quota.history.map((h) => (
-              <Tag key={`${h.year}-${h.month}`} style={{ fontSize: 12 }}>
-                {h.year}/{String(h.month).padStart(2, '0')}
-                &nbsp;
-                {fmtCost(h.used)}
-              </Tag>
+              <span
+                key={`${h.year}-${h.month}`}
+                className="rounded px-2 py-1 text-xs"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  border: `1px solid var(--border-primary)`,
+                  color: 'var(--text-primary)'
+                }}
+              >
+                {h.year}/{String(h.month).padStart(2, '0')} {fmtCost(h.used)}
+              </span>
             ))}
           </div>
         </div>
@@ -145,104 +178,122 @@ const UsageStats: FC = () => {
 
   // ── Token 使用表格 ──────────────────────────────────────
 
-  const columns = [
-    {
-      title: '模型',
-      dataIndex: 'key',
-      key: 'key',
-      render: (v: string) => (
-        <span className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>{v}</span>
-      )
-    },
-    {
-      title: '输入 Tokens',
-      dataIndex: 'inputTokens',
-      key: 'inputTokens',
-      align: 'right' as const,
-      render: (v: number) => <span style={{ color: 'var(--text-secondary)' }}>{fmt(v)}</span>
-    },
-    {
-      title: '输出 Tokens',
-      dataIndex: 'outputTokens',
-      key: 'outputTokens',
-      align: 'right' as const,
-      render: (v: number) => <span style={{ color: 'var(--text-secondary)' }}>{fmt(v)}</span>
-    },
-    {
-      title: '缓存读取',
-      dataIndex: 'cacheRead',
-      key: 'cacheRead',
-      align: 'right' as const,
-      render: (v: number) => <span style={{ color: 'var(--text-secondary)' }}>{fmt(v)}</span>
-    },
-    {
-      title: '费用',
-      dataIndex: 'cost',
-      key: 'cost',
-      align: 'right' as const,
-      render: (v: number) => (
-        <span className="font-medium" style={{ color: '#10a37f' }}>{fmtCost(v)}</span>
-      )
-    }
-  ]
-
-  const totalCost = tokenUsage.reduce((s, r) => s + r.cost, 0)
-  const totalInput = tokenUsage.reduce((s, r) => s + r.inputTokens, 0)
-  const totalOutput = tokenUsage.reduce((s, r) => s + r.outputTokens, 0)
-
   const tokenSection = tokenUsage.length > 0 ? (
     <div
-      className="rounded-lg border p-6 space-y-4"
-      style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
+      className="rounded p-6 space-y-4"
+      style={{
+        border: `1px solid var(--border-primary)`,
+        backgroundColor: 'var(--bg-secondary)'
+      }}
     >
       <div className="flex items-center gap-2">
-        <ThunderboltOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Token 使用详情（全部时间）
+        <ThunderboltOutlined style={{ color: 'var(--info)', fontSize: 18 }} />
+        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>
+          TOKEN USAGE
         </span>
       </div>
 
       {/* 汇总栏 */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: '总输入', value: fmt(totalInput), color: '#1677ff' },
-          { label: '总输出', value: fmt(totalOutput), color: '#722ed1' },
-          { label: '总费用', value: fmtCost(totalCost), color: '#fa8c16' }
+          { label: '总输入', value: fmt(tokenUsage.reduce((s, r) => s + r.inputTokens, 0)), color: 'var(--info)' },
+          { label: '总输出', value: fmt(tokenUsage.reduce((s, r) => s + r.outputTokens, 0)), color: '#722ed1' },
+          { label: '总费用', value: fmtCost(tokenUsage.reduce((s, r) => s + r.cost, 0)), color: 'var(--warning)' }
         ].map((item) => (
-          <div key={item.label} className="text-center">
+          <div key={item.label} className="space-y-1 text-center">
             <div className="text-xl font-bold" style={{ color: item.color }}>{item.value}</div>
-            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.label}</div>
           </div>
         ))}
       </div>
 
-      <Table
-        dataSource={tokenUsage}
-        columns={columns}
-        rowKey="key"
-        size="small"
-        pagination={false}
-        scroll={{ x: true }}
-        style={{ fontSize: 12 }}
-      />
+      {/* 表格 */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr
+              className="text-left text-xs"
+              style={{ color: 'var(--text-muted)', borderBottom: `1px solid var(--border-primary)` }}
+            >
+              <th className="pb-2 font-medium">模型</th>
+              <th className="pb-2 text-right font-medium">输入</th>
+              <th className="pb-2 text-right font-medium">输出</th>
+              <th className="pb-2 text-right font-medium">缓存读取</th>
+              <th className="pb-2 text-right font-medium">费用</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tokenUsage.map((item) => (
+              <tr
+                key={item.key}
+                style={{ borderBottom: `1px solid var(--border-primary)` }}
+              >
+                <td className="py-2 font-mono" style={{ color: 'var(--text-primary)' }}>
+                  {item.key}
+                </td>
+                <td className="py-2 text-right" style={{ color: 'var(--text-secondary)' }}>
+                  {fmt(item.inputTokens)}
+                </td>
+                <td className="py-2 text-right" style={{ color: 'var(--text-secondary)' }}>
+                  {fmt(item.outputTokens)}
+                </td>
+                <td className="py-2 text-right" style={{ color: 'var(--text-secondary)' }}>
+                  {fmt(item.cacheRead)}
+                </td>
+                <td className="py-2 text-right font-medium" style={{ color: 'var(--success)' }}>
+                  {fmtCost(item.cost)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   ) : null
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <section className="space-y-6">
+      {/* 区块标题 */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          <BarChartOutlined className="mr-2" />
-          消耗统计
-        </h2>
-        <Button
-          icon={<ReloadOutlined />}
-          size="small"
-          loading={loading}
+        <div>
+          <h2
+            className="font-bold"
+            style={{
+              fontSize: '16px',
+              lineHeight: 1.5,
+              color: 'var(--text-primary)'
+            }}
+          >
+            USAGE STATISTICS
+          </h2>
+          <div
+            className="mt-1 text-sm"
+            style={{
+              color: 'var(--text-muted)',
+              lineHeight: 2.0
+            }}
+          >
+            // 查看 token 消耗和配额使用情况
+          </div>
+        </div>
+        <button
           onClick={() => void loadData()}
+          disabled={loading}
+          className="rounded transition-opacity duration-150 disabled:opacity-50"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            fontSize: '16px',
+            fontWeight: 500,
+            lineHeight: 2.0,
+            padding: '4px 20px',
+            borderRadius: '4px',
+            border: `1px solid var(--border-primary)`
+          }}
         >
+          <ReloadOutlined spin={loading} className="mr-2" />
           刷新
-        </Button>
+        </button>
       </div>
 
       {loading ? (
@@ -250,8 +301,11 @@ const UsageStats: FC = () => {
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="rounded-lg border p-6"
-              style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
+              className="rounded p-6"
+              style={{
+                border: `1px solid var(--border-primary)`,
+                backgroundColor: 'var(--bg-secondary)'
+              }}
             >
               <Skeleton active paragraph={{ rows: 3 }} />
             </div>
@@ -259,22 +313,43 @@ const UsageStats: FC = () => {
         </div>
       ) : error ? (
         <div
-          className="flex flex-col items-center gap-3 rounded-lg border p-8"
-          style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
+          className="flex flex-col items-center gap-3 rounded p-8"
+          style={{
+            border: `1px solid var(--border-primary)`,
+            backgroundColor: 'var(--bg-secondary)'
+          }}
         >
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
             加载失败：{error}
           </span>
-          <Button icon={<ReloadOutlined />} onClick={() => void loadData()}>重试</Button>
+          <button
+            onClick={() => void loadData()}
+            className="rounded transition-opacity duration-150"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              fontSize: '16px',
+              fontWeight: 500,
+              lineHeight: 2.0,
+              padding: '4px 20px',
+              borderRadius: '4px',
+              border: `1px solid var(--border-primary)`
+            }}
+          >
+            重试
+          </button>
         </div>
       ) : (
         <>
           {quotaSection}
           {tokenSection}
-          {!quota && !tokenSection && (
+          {!quota && tokenUsage.length === 0 && (
             <div
-              className="flex items-center justify-center rounded-lg border p-8"
-              style={{ borderColor: 'var(--border-primary)', backgroundColor: 'var(--bg-secondary)' }}
+              className="flex items-center justify-center rounded p-8"
+              style={{
+                border: `1px solid var(--border-primary)`,
+                backgroundColor: 'var(--bg-secondary)'
+              }}
             >
               <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 暂无统计数据
@@ -283,7 +358,7 @@ const UsageStats: FC = () => {
           )}
         </>
       )}
-    </div>
+    </section>
   )
 }
 

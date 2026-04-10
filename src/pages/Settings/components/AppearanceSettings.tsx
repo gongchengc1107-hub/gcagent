@@ -19,33 +19,47 @@ const themeOptions: ThemeOption[] = [
   {
     key: 'light',
     label: '浅色模式',
-    previewBg: '#ffffff',
-    previewFg: '#f5f5f5',
-    previewSidebar: '#1e293b'
+    previewBg: '#fdfcfc',
+    previewFg: '#201d1d',
+    previewSidebar: '#302c2c'
   },
   {
     key: 'dark',
     label: '深色模式',
-    previewBg: '#1a1a2e',
-    previewFg: '#252540',
-    previewSidebar: '#0f0f1a'
+    previewBg: '#201d1d',
+    previewFg: '#fdfcfc',
+    previewSidebar: '#302c2c'
   }
 ]
 
-/** 外观设置页 */
+/** 外观设置页 - OpenCode 终端风格 */
 const AppearanceSettings: FC = () => {
   const theme = useSettingsStore((s) => s.theme)
   const setTheme = useSettingsStore((s) => s.setTheme)
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <section className="space-y-6">
+      {/* 区块标题 */}
       <div>
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          外观设置
+        <h2
+          className="font-bold"
+          style={{
+            fontSize: '16px',
+            lineHeight: 1.5,
+            color: 'var(--text-primary)'
+          }}
+        >
+          APPEARANCE
         </h2>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          选择你偏好的界面主题
-        </p>
+        <div
+          className="mt-1 text-sm"
+          style={{
+            color: 'var(--text-muted)',
+            lineHeight: 2.0
+          }}
+        >
+          // 选择你偏好的界面主题
+        </div>
       </div>
 
       {/* 主题选择卡片 */}
@@ -56,10 +70,11 @@ const AppearanceSettings: FC = () => {
             <button
               key={option.key}
               onClick={() => setTheme(option.key)}
-              className="group relative overflow-hidden rounded-xl border-2 p-0 text-left transition-all duration-200"
+              className="group overflow-hidden rounded text-left transition-all duration-150"
               style={{
-                borderColor: isActive ? 'var(--accent-primary)' : 'var(--border-primary)',
-                backgroundColor: 'var(--bg-secondary)'
+                border: isActive ? `2px solid var(--accent-primary)` : `1px solid var(--border-primary)`,
+                backgroundColor: 'var(--bg-secondary)',
+                padding: 0
               }}
             >
               {/* 主题预览图 */}
@@ -69,10 +84,10 @@ const AppearanceSettings: FC = () => {
               >
                 {/* 模拟侧边栏 */}
                 <div
-                  className="h-full w-10"
+                  className="h-full w-16"
                   style={{ backgroundColor: option.previewSidebar }}
                 >
-                  <div className="flex flex-col gap-1.5 p-1.5 pt-3">
+                  <div className="flex flex-col gap-2 p-2 pt-4">
                     {[1, 2, 3].map((i) => (
                       <div
                         key={i}
@@ -86,22 +101,22 @@ const AppearanceSettings: FC = () => {
                   </div>
                 </div>
                 {/* 模拟内容区 */}
-                <div className="flex-1 p-3">
+                <div className="flex-1 p-4">
                   <div
-                    className="mb-2 h-2 w-1/2 rounded"
-                    style={{ backgroundColor: option.previewFg }}
+                    className="mb-3 h-2 w-1/2 rounded"
+                    style={{ backgroundColor: option.previewFg, opacity: 0.3 }}
                   />
                   <div
-                    className="mb-1.5 h-1.5 w-full rounded"
-                    style={{ backgroundColor: option.previewFg }}
+                    className="mb-2 h-1.5 w-full rounded"
+                    style={{ backgroundColor: option.previewFg, opacity: 0.15 }}
                   />
                   <div
-                    className="mb-1.5 h-1.5 w-3/4 rounded"
-                    style={{ backgroundColor: option.previewFg }}
+                    className="mb-2 h-1.5 w-3/4 rounded"
+                    style={{ backgroundColor: option.previewFg, opacity: 0.15 }}
                   />
                   <div
                     className="h-1.5 w-1/2 rounded"
-                    style={{ backgroundColor: option.previewFg }}
+                    style={{ backgroundColor: option.previewFg, opacity: 0.15 }}
                   />
                 </div>
               </div>
@@ -125,7 +140,30 @@ const AppearanceSettings: FC = () => {
           )
         })}
       </div>
-    </div>
+
+      {/* 主题说明 */}
+      <div
+        className="rounded p-4 text-sm"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          border: `1px solid var(--border-primary)`,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.8
+        }}
+      >
+        <div className="space-y-1">
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>#</span> 浅色模式：暖白背景，适合明亮环境
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>#</span> 深色模式：暖黑背景，适合低光环境
+          </div>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>#</span> Berkeley Mono 字体，monospace-first 美学
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 

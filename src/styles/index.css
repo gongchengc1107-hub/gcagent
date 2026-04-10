@@ -24,18 +24,144 @@ body,
 
 body {
   font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+    'Berkeley Mono',
+    'IBM Plex Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+    background-color 0.15s ease,
+    color 0.15s ease;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* OpenCode 排版样式 */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 2.38rem; /* 38px */
+}
+
+h2 {
+  font-size: 1.00rem; /* 16px */
+}
+
+p {
+  font-size: 1.00rem; /* 16px */
+  line-height: 1.5;
+}
+
+.text-body-medium {
+  font-weight: 500;
+}
+
+.text-caption {
+  font-size: 0.88rem; /* 14px */
+  line-height: 2.0;
+}
+
+/* OpenCode 按钮样式 */
+.btn-opencode {
+  background-color: var(--bg-primary);
+  color: var(--text-inverse);
+  padding: 4px 20px;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 2.0;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn-opencode:hover {
+  opacity: 0.9;
+}
+
+.btn-opencode:active {
+  opacity: 0.8;
+}
+
+/* OpenCode 输入框样式 */
+.input-opencode {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 20px;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input-opencode:focus {
+  border-color: var(--border-outline);
+}
+
+/* OpenCode 链接样式 */
+a.opencode-link {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  font-weight: 500;
+}
+
+a.opencode-link:hover {
+  color: var(--accent-primary);
+}
+
+a.opencode-link-light {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a.opencode-link-light:hover {
+  text-decoration: underline;
+}
+
+a.opencode-link-muted {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+a.opencode-link-muted:hover {
+  color: var(--text-primary);
+}
+
+/* OpenCode Tab 样式 */
+.tab-opencode {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.tab-opencode:hover {
+  color: var(--accent-primary);
+}
+
+.tab-opencode-active {
+  border-bottom-color: var(--border-secondary);
+  color: var(--text-primary);
 }
 
 /* 滚动条样式 */
