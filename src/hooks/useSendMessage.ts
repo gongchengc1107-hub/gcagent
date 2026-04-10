@@ -86,26 +86,43 @@ export function useSendMessage(): UseSendMessageReturn {
       // 关键：从 store 实时读取最新 model，绕过 useCallback 闭包的 stale closure 问题。
       // 不将 currentModel 放入依赖数组，sendMessage 引用稳定，不会因模型切换触发下游组件重建。
       let resolvedModel = useModelStore.getState().currentModel || DEFAULT_MODEL
-      
+
+      if (import.meta.env.DEV) {
+        console.log(`[useSendMessage] Initial resolvedModel: ${resolvedModel}`)
+      }
+
       // 检查是否使用了多模型配置
       if (resolvedModel.startsWith('direct://multi/')) {
         const modelId = resolvedModel.replace('direct://multi/', '')
         const settingsState = useSettingsStore.getState()
         const multiModel = settingsState.multiModels.find(m => m.id === modelId)
-        
+
+        if (import.meta.env.DEV) {
+          console.log(`[useSendMessage] Parsing multi model - modelId: ${modelId}, found: ${!!multiModel}`)
+          if (multiModel) {
+            console.log(`[useSendMessage] MultiModel details:`, multiModel)
+          }
+        }
+
         if (multiModel) {
           // 激活对应的多模型配置
           useSettingsStore.getState().setActiveMultiModelId(modelId)
           // 使用多模型的 modelId
           resolvedModel = multiModel.modelId
-          
+
           if (import.meta.env.DEV) {
             console.log(`[useSendMessage] 使用多模型配置: ${multiModel.name} (${multiModel.modelId})`)
+          }
+        } else {
+          if (import.meta.env.DEV) {
+            console.warn(`[useSendMessage] 未找到对应的多模型配置，modelId: ${modelId}`)
+            console.warn(`[useSendMessage] 当前 multiModels:`, settingsState.multiModels)
           }
         }
       }
 
       if (import.meta.env.DEV) {
+        console.log(`[useSendMessage] Final resolvedModel: ${resolvedModel}`)
         console.log(`[useSendMessage] provider=${provider.constructor.name} model=${resolvedModel}`)
       }
 
@@ -137,7 +154,18 @@ export function useSendMessage(): UseSendMessageReturn {
           const needsTitle = currentSession?.title === '新对话'
           if (needsTitle) {
             const titleProvider = getProvider()
-            const titleModel = useModelStore.getState().currentModel || DEFAULT_MODEL
+            let titleModel = useModelStore.getState().currentModel || DEFAULT_MODEL
+            
+            // 同样需要解析多模型配置
+            if (titleModel.startsWith('direct://multi/')) {
+              const modelId = titleModel.replace('direct://multi/', '')
+              const settingsState = useSettingsStore.getState()
+              const multiModel = settingsState.multiModels.find(m => m.id === modelId)
+              if (multiModel) {
+                titleModel = multiModel.modelId
+              }
+            }
+            
             let titleAccumulated = ''
             const titleSessionId = `__title__${sessionId}`
             // 拼对话摘要：取首条 user 消息 + 首条 assistant 消息，截断避免过长
