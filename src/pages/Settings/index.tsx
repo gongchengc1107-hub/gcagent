@@ -2,10 +2,11 @@ import { type FC, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Divider, Modal } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useSettingsStore } from '@/stores'
 import AccountSettings from './components/AccountSettings'
 import ProviderSettings from './components/ProviderSettings'
 import UsageStats from './components/UsageStats'
+import DirectUsageStats from './components/DirectUsageStats'
 import AppearanceSettings from './components/AppearanceSettings'
 import DataManagement from './components/DataManagement'
 
@@ -13,6 +14,7 @@ import DataManagement from './components/DataManagement'
 const SettingsPage: FC = () => {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
+  const providerSettingMode = useSettingsStore((s) => s.providerSettingMode)
 
   /** 退出登录确认 */
   const handleLogout = useCallback(() => {
@@ -34,7 +36,7 @@ const SettingsPage: FC = () => {
       <div className="mx-auto w-full max-w-3xl space-y-10">
         <AccountSettings />
         <ProviderSettings />
-        <UsageStats />
+        {providerSettingMode === 'direct' ? <DirectUsageStats /> : <UsageStats />}
         <AppearanceSettings />
         <DataManagement />
 

@@ -8,6 +8,27 @@ import type { ChatProvider, SendMessageParams } from './chatProvider'
 import type { ChatMessage } from '@/types'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 
+// ─── Usage 统计类型 ─────────────────────────────────────────────────────────
+
+export interface DirectUsageRecord {
+  modelId: string
+  provider: string
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  timestamp: number
+}
+
+/** 回调：记录一次 usage */
+type OnUsageRecord = (record: DirectUsageRecord) => void
+
+/** 全局 usage 回调注册表 */
+let _onUsageRecord: OnUsageRecord | null = null
+
+export function registerUsageCallback(cb: OnUsageRecord): void {
+  _onUsageRecord = cb
+}
+
 // ─── SSE 流式解析 ──────────────────────────────────────────────────────────────
 
 /**
@@ -15,13 +36,13 @@ import { useSettingsStore } from '@/stores/useSettingsStore'
  *
  * 数据格式示例：
  *   data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}
- *   data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+ *   data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}
  *   data: [DONE]
  */
 function parseSSELine(
   line: string,
   accumulated: string
-): { text: string; done: boolean; error?: Error } {
+): { text: string; done: boolean; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }; error?: Error } {
   if (!line.startsWith('data: ')) {
     return { text: accumulated, done: false }
   }
@@ -39,6 +60,11 @@ function parseSSELine(
         delta?: { content?: string }
         finish_reason?: string | null
       }>
+      usage?: {
+        prompt_tokens: number
+        completion_tokens: number
+        total_tokens: number
+      }
       error?: { message?: string; type?: string }
     }
 
@@ -53,6 +79,10 @@ function parseSSELine(
 
     const choice = json.choices?.[0]
     if (!choice) {
+      // 有些 API 在最后一个 chunk 只返回 usage，没有 choices
+      if (json.usage) {
+        return { text: accumulated, done: true, usage: json.usage }
+      }
       return { text: accumulated, done: false }
     }
 
@@ -63,7 +93,11 @@ function parseSSELine(
     // 检查是否完成
     const done = choice.finish_reason !== null && choice.finish_reason !== undefined
 
-    return { text: newText, done }
+    const result: typeof parseSSELine.prototype & { usage?: typeof json.usage } = { text: newText, done }
+    if (json.usage) {
+      result.usage = json.usage
+    }
+    return result
   } catch {
     // JSON 解析失败，忽略
     return { text: accumulated, done: false }
@@ -237,6 +271,17 @@ export class DirectProvider implements ChatProvider {
           const json = await res.json() as any
           const text = json.choices?.[0]?.message?.content ?? ''
           onChunk(text)
+          // 记录 usage（非流式）
+          if (json.usage) {
+            _onUsageRecord?.({
+              modelId: normalizedModel,
+              provider: baseUrl,
+              promptTokens: json.usage.prompt_tokens ?? 0,
+              completionTokens: json.usage.completion_tokens ?? 0,
+              totalTokens: json.usage.total_tokens ?? 0,
+              timestamp: Date.now()
+            })
+          }
           onComplete()
           return
         }
@@ -250,6 +295,7 @@ export class DirectProvider implements ChatProvider {
         const decoder = new TextDecoder()
         let accumulated = ''
         let buffer = ''
+        let capturedUsage: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | undefined
 
         while (true) {
           const { done, value } = await reader.read()
@@ -277,8 +323,24 @@ export class DirectProvider implements ChatProvider {
               return
             }
 
+            // 捕获 usage 数据（通常在最后一个 chunk）
+            if (result.usage) {
+              capturedUsage = result.usage
+            }
+
             if (result.done) {
               onChunk(accumulated)
+              // 记录 usage
+              if (capturedUsage) {
+                _onUsageRecord?.({
+                  modelId: normalizedModel,
+                  provider: baseUrl,
+                  promptTokens: capturedUsage.prompt_tokens ?? 0,
+                  completionTokens: capturedUsage.completion_tokens ?? 0,
+                  totalTokens: capturedUsage.total_tokens ?? 0,
+                  timestamp: Date.now()
+                })
+              }
               onComplete()
               return
             }

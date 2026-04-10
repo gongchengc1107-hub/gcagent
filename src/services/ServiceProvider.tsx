@@ -10,6 +10,7 @@ import { syncDiskAgents } from '@/utils/diskSync'
 import { syncDiskSkills } from '@/utils/skillDiskSync'
 import { useMCPStore, useAgentStore, useSkillStore } from '@/stores'
 import { warmUpProvider } from './codemakProvider'
+import { registerUsageCallback } from '@/services/directProvider'
 
 /** Service 容器类型 */
 interface ServiceContextType {
@@ -149,6 +150,12 @@ export function ServiceProvider({ children }: { children: React.ReactNode }) {
       void fetchModels()
     }
   }, [isLoggedIn, fetchModels])
+
+  // 注册直连模式 usage 统计回调
+  useEffect(() => {
+    const { addDirectUsageRecord } = useSettingsStore.getState()
+    registerUsageCallback(addDirectUsageRecord)
+  }, [])
 
   return <ServiceContext.Provider value={services}>{children}</ServiceContext.Provider>
 }

@@ -15,7 +15,11 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(curl *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(kill *)",
+      "Bash(xargs *)",
+      "Bash(find *)",
+      "Bash(grep *)"
     ]
   },
   "$version": 3

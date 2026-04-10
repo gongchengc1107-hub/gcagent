@@ -1214,31 +1214,29 @@ function registerIPC(): void {
 // ─── 生命周期 ──────────────────────────────────────────────
 
 app.whenReady().then(async () => {
-  // ─── CSP：允许渲染进程向本地 codemaker serve 发起 fetch 请求 ───
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          [
-            "default-src 'self'",
-            // 开发模式下保留 unsafe-eval（Vite HMR 需要），打包后去除
-            isDev
-              ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-              : "script-src 'self' 'unsafe-inline'",
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob: https:",
-            "font-src 'self' data:",
-            // 允许连接本地 codemaker serve（任意端口）以及 wss/ws 用于热更新
-            "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ws://localhost:* http://localhost:*",
-            "media-src 'self'",
-            "object-src 'none'",
-            "frame-src 'self' blob: data:"
-          ].join('; ')
-        ]
-      }
+  // ─── CSP：仅在生产模式设置，开发模式下跳过（webSecurity: false 已足够） ───
+  if (!isDev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ws://localhost:* http://localhost:* https:",
+              "media-src 'self'",
+              "object-src 'none'",
+              "frame-src 'self' blob: data:"
+            ].join('; ')
+          ]
+        }
+      })
     })
-  })
+  }
 
   registerIPC()
   await startServeProcess()

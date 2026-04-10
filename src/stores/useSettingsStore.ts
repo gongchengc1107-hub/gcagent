@@ -10,6 +10,7 @@ import type {
 } from '@/types'
 import { STORAGE_KEYS } from '@/utils/storageKeys'
 import { applyTheme } from '@/utils/theme'
+import type { DirectUsageRecord } from '@/services/directProvider'
 
 interface SettingsState {
   /* ---- 通用 ---- */
@@ -58,6 +59,14 @@ interface SettingsState {
   /** 更新模型连接状态 */
   setMultiModelConnectionStatus: (id: string, status: TestConnectionStatus, error?: string) => void
 
+  /* ---- 直连模式 Usage 统计 ---- */
+  /** 直连模式 token 使用记录 */
+  directUsageRecords: DirectUsageRecord[]
+  /** 添加一条 usage 记录 */
+  addDirectUsageRecord: (record: DirectUsageRecord) => void
+  /** 清空 usage 记录 */
+  clearDirectUsageRecords: () => void
+
   /** 重置所有设置到默认值 */
   resetAll: () => void
 }
@@ -76,7 +85,8 @@ const DEFAULT_STATE = {
   connectionStatus: 'idle' as TestConnectionStatus,
   connectionError: undefined,
   multiModels: [] as ModelConfig[],
-  activeMultiModelId: undefined
+  activeMultiModelId: undefined,
+  directUsageRecords: [] as DirectUsageRecord[]
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -187,6 +197,18 @@ export const useSettingsStore = create<SettingsState>()(
         }
       },
 
+      /* ---- 直连模式 Usage 统计 ---- */
+      addDirectUsageRecord: (record: DirectUsageRecord) => {
+        const current = get().directUsageRecords
+        // 最多保留 500 条，避免无限增长
+        const trimmed = current.length > 500 ? current.slice(-400) : current
+        set({ directUsageRecords: [...trimmed, record] })
+      },
+
+      clearDirectUsageRecords: () => {
+        set({ directUsageRecords: [] })
+      },
+
       resetAll: () => {
         set(DEFAULT_STATE)
       }
@@ -205,7 +227,8 @@ export const useSettingsStore = create<SettingsState>()(
         apiKey: state.apiKey,
         customModels: state.customModels,
         multiModels: state.multiModels,
-        activeMultiModelId: state.activeMultiModelId
+        activeMultiModelId: state.activeMultiModelId,
+        directUsageRecords: state.directUsageRecords.slice(-300) // 持久化最近 300 条
         // 故意排除：servePort、connectionStatus、connectionError
       })
     }
