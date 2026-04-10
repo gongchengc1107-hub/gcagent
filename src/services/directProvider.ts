@@ -166,6 +166,7 @@ export class DirectProvider implements ChatProvider {
 
     if (import.meta.env.DEV) {
       console.log(`[DirectProvider] sendMessage model=${model} baseUrl=${baseUrl}`)
+      console.log('[DirectProvider] Full URL:', `${baseUrl}/chat/completions`)
       console.log('[DirectProvider] content preview =', content.slice(0, 80))
     }
 
@@ -177,15 +178,45 @@ export class DirectProvider implements ChatProvider {
         // 构建消息体
         const messages = buildMessages(historyMessages, content, systemPrompt)
 
+        const requestUrl = `${baseUrl}/chat/completions`
+        if (import.meta.env.DEV) {
+          console.log('[DirectProvider] Request URL:', requestUrl)
+          console.log('[DirectProvider] Request model:', model)
+          console.log('[DirectProvider] Request body:', JSON.stringify({ model, messages: messages.length, stream: true }, null, 2))
+        }
+
+        // DashScope 模型 ID 规范化：确保使用正确的格式
+        let normalizedModel = model
+        if (baseUrl.includes('dashscope.aliyuncs.com')) {
+          // DashScope 有效模型 ID 列表
+          const validDashScopeModels = [
+            'qwen-turbo', 'qwen-plus', 'qwen-max', 'qwen-flash',
+            'qwen3-max', 'qwen3.5-plus', 'qwen3.5-flash',
+            'qwq-plus', 'qwen3-coder-plus', 'qwen3-coder-flash',
+            'deepseek-chat', 'deepseek-reasoner'
+          ]
+          
+          // 如果模型 ID 不在有效列表中，尝试匹配最接近的有效 ID
+          const exactMatch = validDashScopeModels.find(m => model.toLowerCase() === m || model.toLowerCase().includes(m))
+          if (exactMatch) {
+            normalizedModel = exactMatch
+            if (import.meta.env.DEV) {
+              console.log(`[DirectProvider] Normalized DashScope model: ${model} -> ${normalizedModel}`)
+            }
+          } else if (import.meta.env.DEV) {
+            console.warn(`[DirectProvider] Unknown DashScope model: ${model}. Using as-is.`)
+          }
+        }
+
         // 发起请求
-        const res = await fetch(`${baseUrl}/chat/completions`, {
+        const res = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
           },
           body: JSON.stringify({
-            model,
+            model: normalizedModel,
             messages,
             stream: true
           }),
