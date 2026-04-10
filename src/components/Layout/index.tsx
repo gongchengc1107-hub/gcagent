@@ -9,12 +9,9 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  UserOutlined,
-  BulbOutlined,
   CheckSquareOutlined
 } from '@ant-design/icons'
 import { Tooltip } from 'antd'
-import { useSettingsStore } from '@/stores'
 
 interface NavItem {
   key: string
@@ -28,15 +25,13 @@ const navItems: NavItem[] = [
   { key: 'agents', path: '/agents', icon: RobotOutlined, label: 'Agents' },
   { key: 'skills', path: '/skills', icon: ThunderboltOutlined, label: 'Skills' },
   { key: 'mcp', path: '/mcp', icon: ApiOutlined, label: 'MCP' },
-  { key: 'todo', path: '/todo', icon: CheckSquareOutlined, label: 'Todo' },
-  { key: 'settings', path: '/settings', icon: SettingOutlined, label: 'Settings' }
+  { key: 'todo', path: '/todo', icon: CheckSquareOutlined, label: 'Todo' }
 ]
 
 const Layout: FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const { theme, toggleTheme } = useSettingsStore()
 
   const sidebarWidth = collapsed ? 64 : 240
   const currentPath = '/' + location.pathname.split('/')[1]
@@ -113,6 +108,29 @@ const Layout: FC = () => {
           className="border-t px-2 py-3"
           style={{ borderColor: 'rgba(255,255,255,0.1)' }}
         >
+          {/* 设置按钮 */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="mb-1 flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm transition-colors"
+            style={{
+              color: currentPath === '/settings' ? 'var(--sidebar-text)' : 'var(--sidebar-text-muted)',
+              backgroundColor: currentPath === '/settings' ? 'var(--sidebar-active)' : 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPath !== '/settings') {
+                e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPath !== '/settings') {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }
+            }}
+          >
+            <SettingOutlined className="text-base" />
+            {!collapsed && <span className="ml-3">设置</span>}
+          </button>
+
           {/* 折叠按钮（在最底部） */}
           <button
             onClick={() => setCollapsed(!collapsed)}
