@@ -1,7 +1,8 @@
-import type { FC, PropsWithChildren } from 'react'
+import { useState, type FC, type PropsWithChildren } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { useAuthStore } from '@/stores'
+import StartupModal from './StartupModal'
 
 /**
  * 认证守卫组件
@@ -12,6 +13,7 @@ import { useAuthStore } from '@/stores'
 const AuthGuard: FC<PropsWithChildren> = ({ children }) => {
   const hasHydrated = useAuthStore((s) => s._hasHydrated)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const [showStartupModal, setShowStartupModal] = useState(true)
 
   // persist hydration 未完成，显示全屏 loading
   if (!hasHydrated) {
@@ -25,6 +27,11 @@ const AuthGuard: FC<PropsWithChildren> = ({ children }) => {
   // 未登录，重定向到登录页
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />
+  }
+
+  // 已登录，显示启动弹窗让用户选择模式
+  if (showStartupModal) {
+    return <StartupModal onEnter={() => setShowStartupModal(false)} />
   }
 
   return <>{children}</>
