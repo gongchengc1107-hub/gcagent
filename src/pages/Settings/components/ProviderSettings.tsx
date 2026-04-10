@@ -56,12 +56,16 @@ const ProviderSettings: FC = () => {
     providerType: ModelProviderType
     apiUrl: string
     apiKey: string
+    accessKeyId: string
+    accessKeySecret: string
     modelId: string
   }>({
     name: '',
     providerType: 'qwen',
     apiUrl: '',
     apiKey: '',
+    accessKeyId: '',
+    accessKeySecret: '',
     modelId: ''
   })
 
@@ -113,6 +117,8 @@ const ProviderSettings: FC = () => {
       providerType: 'qwen',
       apiUrl: '',
       apiKey: '',
+      accessKeyId: '',
+      accessKeySecret: '',
       modelId: ''
     })
     setIsModalOpen(true)
@@ -125,7 +131,9 @@ const ProviderSettings: FC = () => {
       name: model.name,
       providerType: model.providerType,
       apiUrl: model.apiUrl,
-      apiKey: model.apiKey,
+      apiKey: model.apiKey || '',
+      accessKeyId: model.accessKeyId || '',
+      accessKeySecret: model.accessKeySecret || '',
       modelId: model.modelId
     })
     setIsModalOpen(true)
@@ -168,6 +176,17 @@ const ProviderSettings: FC = () => {
       message.warning('请输入模型 ID')
       return
     }
+    
+    // 验证认证字段
+    const isQwen = formData.providerType === 'qwen'
+    if (isQwen && (!formData.accessKeyId.trim() || !formData.accessKeySecret.trim())) {
+      message.warning('请输入 AccessKey ID 和 AccessKey Secret')
+      return
+    }
+    if (!isQwen && !formData.apiKey.trim()) {
+      message.warning('请输入 API Key')
+      return
+    }
 
     if (editingModel) {
       // 更新现有模型
@@ -175,7 +194,9 @@ const ProviderSettings: FC = () => {
         name: formData.name.trim(),
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
-        apiKey: formData.apiKey.trim(),
+        apiKey: isQwen ? undefined : formData.apiKey.trim(),
+        accessKeyId: isQwen ? formData.accessKeyId.trim() : undefined,
+        accessKeySecret: isQwen ? formData.accessKeySecret.trim() : undefined,
         modelId: formData.modelId.trim()
       })
       message.success('模型已更新')
@@ -186,7 +207,9 @@ const ProviderSettings: FC = () => {
         name: formData.name.trim(),
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
-        apiKey: formData.apiKey.trim(),
+        apiKey: isQwen ? undefined : formData.apiKey.trim(),
+        accessKeyId: isQwen ? formData.accessKeyId.trim() : undefined,
+        accessKeySecret: isQwen ? formData.accessKeySecret.trim() : undefined,
         modelId: formData.modelId.trim(),
         enabled: true
       }
@@ -620,17 +643,46 @@ const ProviderSettings: FC = () => {
             />
           </div>
 
-          {/* API Key */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              API Key
-            </label>
-            <Input.Password
-              value={formData.apiKey}
-              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-              placeholder="sk-..."
-            />
-          </div>
+          {/* 认证字段 - 根据提供者类型显示不同 */}
+          {formData.providerType === 'qwen' ? (
+            <>
+              {/* AccessKey ID（千问） */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  AccessKey ID
+                </label>
+                <Input
+                  value={formData.accessKeyId}
+                  onChange={(e) => setFormData({ ...formData, accessKeyId: e.target.value })}
+                  placeholder="LTAI..."
+                />
+              </div>
+
+              {/* AccessKey Secret（千问） */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  AccessKey Secret
+                </label>
+                <Input.Password
+                  value={formData.accessKeySecret}
+                  onChange={(e) => setFormData({ ...formData, accessKeySecret: e.target.value })}
+                  placeholder="AccessKey Secret"
+                />
+              </div>
+            </>
+          ) : (
+            /* API Key（其他 provider） */
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                API Key
+              </label>
+              <Input.Password
+                value={formData.apiKey}
+                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                placeholder="sk-..."
+              />
+            </div>
+          )}
 
           {/* 模型 ID */}
           <div className="space-y-1.5">

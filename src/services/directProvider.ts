@@ -126,7 +126,10 @@ function getDirectConfig() {
       }
       return {
         baseUrl,
-        apiKey: activeModel.apiKey.trim(),
+        apiKey: activeModel.apiKey?.trim() || '',
+        accessKeyId: activeModel.accessKeyId?.trim() || '',
+        accessKeySecret: activeModel.accessKeySecret?.trim() || '',
+        providerType: activeModel.providerType,
         model: activeModel.modelId.trim() || 'gpt-4o'
       }
     }
@@ -161,16 +164,27 @@ export class DirectProvider implements ChatProvider {
    */
   sendMessage(params: SendMessageParams): () => void {
     const { content, messages: historyMessages, model: overrideModel, systemPrompt, onChunk, onComplete, onError } = params
-    const { baseUrl, apiKey, model: defaultModel } = getDirectConfig()
+    const config = getDirectConfig()
+    const { baseUrl, apiKey, accessKeyId, accessKeySecret, providerType, model: defaultModel } = config
     const model = overrideModel || defaultModel
 
     if (import.meta.env.DEV) {
-      console.log(`[DirectProvider] sendMessage model=${model} baseUrl=${baseUrl}`)
+      console.log(`[DirectProvider] sendMessage model=${model} baseUrl=${baseUrl} providerType=${providerType}`)
       console.log('[DirectProvider] content preview =', content.slice(0, 80))
     }
 
     const abortController = new AbortController()
     this.activeAbortControllers.add(abortController)
+
+    // 构建认证头
+    let authHeader: Record<string, string> = {}
+    if (providerType === 'qwen' && accessKeyId && accessKeySecret) {
+      // 阿里云百炼使用 AccessKey ID:AccessKey Secret 作为 Bearer Token
+      const token = `${accessKeyId}:${accessKeySecret}`
+      authHeader = { Authorization: `Bearer ${token}` }
+    } else if (apiKey) {
+      authHeader = { Authorization: `Bearer ${apiKey}` }
+    }
 
     const run = async (): Promise<void> => {
       try {
@@ -182,7 +196,7 @@ export class DirectProvider implements ChatProvider {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+            ...authHeader
           },
           body: JSON.stringify({
             model,

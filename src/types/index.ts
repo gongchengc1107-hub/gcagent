@@ -211,8 +211,12 @@ export interface ModelConfig {
   providerType: ModelProviderType
   /** API Base URL */
   apiUrl: string
-  /** API Key */
-  apiKey: string
+  /** API Key（用于 OpenAI 兼容的 Bearer Token 认证） */
+  apiKey?: string
+  /** AccessKey ID（用于阿里云百炼/千问认证） */
+  accessKeyId?: string
+  /** AccessKey Secret（用于阿里云百炼/千问认证） */
+  accessKeySecret?: string
   /** 模型 ID（API 调用时使用） */
   modelId: string
   /** 是否启用 */
