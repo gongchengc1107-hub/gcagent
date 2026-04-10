@@ -7,11 +7,6 @@ import AgentsPage from '@/pages/Agents'
 import SkillsPage from '@/pages/Skills'
 import MCPToolsPage from '@/pages/MCPTools'
 import SettingsPage from '@/pages/Settings'
-import AccountSettings from '@/pages/Settings/components/AccountSettings'
-import ProviderSettings from '@/pages/Settings/components/ProviderSettings'
-import UsageStats from '@/pages/Settings/components/UsageStats'
-import AppearanceSettings from '@/pages/Settings/components/AppearanceSettings'
-import DataManagement from '@/pages/Settings/components/DataManagement'
 import TodoPage from '@/pages/Todo'
 
 const router = createHashRouter(
@@ -54,33 +49,7 @@ const router = createHashRouter(
         },
         {
           path: 'settings',
-          element: <SettingsPage />,
-          children: [
-            {
-              index: true,
-              element: <Navigate to="/settings/account" replace />
-            },
-            {
-              path: 'account',
-              element: <AccountSettings />
-            },
-            {
-              path: 'provider',
-              element: <ProviderSettings />
-            },
-            {
-              path: 'usage',
-              element: <UsageStats />
-            },
-            {
-              path: 'appearance',
-              element: <AppearanceSettings />
-            },
-            {
-              path: 'data',
-              element: <DataManagement />
-            }
-          ]
+          element: <SettingsPage />
         }
       ]
     },
