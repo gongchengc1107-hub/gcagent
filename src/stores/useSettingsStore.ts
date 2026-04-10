@@ -5,7 +5,8 @@ import type {
   ProviderMode,
   ProviderSettingMode,
   ServeStatus,
-  TestConnectionStatus
+  TestConnectionStatus,
+  ModelConfig
 } from '@/types'
 import { STORAGE_KEYS } from '@/utils/storageKeys'
 import { applyTheme } from '@/utils/theme'
@@ -30,6 +31,12 @@ interface SettingsState {
   connectionStatus: TestConnectionStatus
   connectionError?: string
 
+  /* ---- 多模型配置 ---- */
+  /** 多模型列表 */
+  multiModels: ModelConfig[]
+  /** 当前激活的模型 ID */
+  activeMultiModelId?: string
+
   setProviderSettingMode: (mode: ProviderSettingMode) => void
   setServeStatus: (status: ServeStatus) => void
   setServePort: (port: number) => void
@@ -38,6 +45,18 @@ interface SettingsState {
   addCustomModel: (model: string) => void
   removeCustomModel: (model: string) => void
   setConnectionStatus: (status: TestConnectionStatus, error?: string) => void
+
+  /* ---- 多模型操作 ---- */
+  /** 添加新模型配置 */
+  addMultiModel: (model: ModelConfig) => void
+  /** 更新模型配置 */
+  updateMultiModel: (id: string, updates: Partial<ModelConfig>) => void
+  /** 删除模型配置 */
+  removeMultiModel: (id: string) => void
+  /** 设置激活的模型 */
+  setActiveMultiModelId: (id: string) => void
+  /** 更新模型连接状态 */
+  setMultiModelConnectionStatus: (id: string, status: TestConnectionStatus, error?: string) => void
 
   /** 重置所有设置到默认值 */
   resetAll: () => void
@@ -55,7 +74,9 @@ const DEFAULT_STATE = {
   apiKey: '',
   customModels: [] as string[],
   connectionStatus: 'idle' as TestConnectionStatus,
-  connectionError: undefined
+  connectionError: undefined,
+  multiModels: [] as ModelConfig[],
+  activeMultiModelId: undefined
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -119,6 +140,53 @@ export const useSettingsStore = create<SettingsState>()(
         set({ connectionStatus: status, connectionError: error })
       },
 
+      /* ---- 多模型操作 ---- */
+      addMultiModel: (model: ModelConfig) => {
+        const current = get().multiModels
+        set({ multiModels: [...current, model] })
+        // 如果是第一个模型，自动设为激活
+        if (current.length === 0) {
+          set({ activeMultiModelId: model.id })
+        }
+      },
+
+      updateMultiModel: (id: string, updates: Partial<ModelConfig>) => {
+        const current = get().multiModels
+        const index = current.findIndex(m => m.id === id)
+        if (index !== -1) {
+          const updated = [...current]
+          updated[index] = { ...current[index], ...updates }
+          set({ multiModels: updated })
+        }
+      },
+
+      removeMultiModel: (id: string) => {
+        const current = get().multiModels
+        const filtered = current.filter(m => m.id !== id)
+        const newState: { multiModels: ModelConfig[]; activeMultiModelId?: string } = {
+          multiModels: filtered
+        }
+        // 如果删除的是当前激活的模型，切换到第一个可用的
+        if (get().activeMultiModelId === id) {
+          newState.activeMultiModelId = filtered.length > 0 ? filtered[0].id : undefined
+        }
+        set(newState)
+      },
+
+      setActiveMultiModelId: (id: string) => {
+        set({ activeMultiModelId: id })
+      },
+
+      setMultiModelConnectionStatus: (id: string, status: TestConnectionStatus, error?: string) => {
+        const current = get().multiModels
+        const index = current.findIndex(m => m.id === id)
+        if (index !== -1) {
+          const updated = [...current]
+          updated[index] = { ...current[index], connectionStatus: status, connectionError: error }
+          set({ multiModels: updated })
+        }
+      },
+
       resetAll: () => {
         set(DEFAULT_STATE)
       }
@@ -135,7 +203,9 @@ export const useSettingsStore = create<SettingsState>()(
         serveAddress: state.serveAddress,
         apiBaseUrl: state.apiBaseUrl,
         apiKey: state.apiKey,
-        customModels: state.customModels
+        customModels: state.customModels,
+        multiModels: state.multiModels,
+        activeMultiModelId: state.activeMultiModelId
         // 故意排除：servePort、connectionStatus、connectionError
       })
     }

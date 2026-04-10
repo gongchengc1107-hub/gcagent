@@ -10,6 +10,8 @@ import {
 } from '@ant-design/icons'
 import { useAgentStore, useChatStore, useSkillStore } from '@/stores'
 import { useModelStore, DEFAULT_MODEL } from '@/stores/useModelStore'
+import { useSettingsStore } from '@/stores/useSettingsStore'
+import type { ModelProviderType } from '@/types'
 import { useSendMessage } from '@/hooks/useSendMessage'
 import { getProvider } from '@/services/providerFactory'
 import type { ChatMessage, ImageAttachment, FileAttachment } from '@/types'
@@ -79,6 +81,41 @@ function buildModelOptions(
   return Object.entries(groups).map(([provider, items]) => ({
     label: provider,
     options: items.map((m) => ({ label: modelLabel(m), value: m }))
+  }))
+}
+
+/** 构建多模型配置选项 */
+function buildMultiModelOptions(): { label: string; options: { label: string; value: string }[] }[] {
+  const state = useSettingsStore.getState()
+  const multiModels = state.multiModels.filter(m => m.enabled)
+  
+  if (multiModels.length === 0) return []
+  
+  const providerLabels: Record<ModelProviderType, string> = {
+    qwen: '通义千问',
+    doubao: '豆包',
+    deepseek: 'DeepSeek',
+    kling: '可灵',
+    kimi: 'Kimi',
+    minimax: 'MiniMax',
+    openai: 'OpenAI',
+    custom: '自定义'
+  }
+  
+  // 按提供者类型分组
+  const groups: Record<string, Array<{ id: string; name: string; modelId: string }>> = {}
+  for (const m of multiModels) {
+    const label = providerLabels[m.providerType] || '自定义'
+    if (!groups[label]) groups[label] = []
+    groups[label].push({ id: m.id, name: m.name, modelId: m.modelId })
+  }
+  
+  return Object.entries(groups).map(([provider, items]) => ({
+    label: `${provider}（直连）`,
+    options: items.map((m) => ({ 
+      label: m.name, 
+      value: `direct://multi/${m.id}` // 使用特殊格式标识多模型
+    }))
   }))
 }
 
@@ -627,11 +664,23 @@ const MessageInput: FC = () => {
 
   const modelOptions = useMemo(():
     { label: string; options: { label: string; value: string }[] }[] => {
+    const options: { label: string; options: { label: string; value: string }[] }[] = []
+    
+    // 添加多模型配置选项（优先显示）
+    const multiModelOptions = buildMultiModelOptions()
+    if (multiModelOptions.length > 0) {
+      options.push(...multiModelOptions)
+    }
+    
+    // 添加原有的 Codemaker 模型选项
     if (availableModels.length === 0) {
       const fallback = currentModel || DEFAULT_MODEL
-      return [{ label: 'Codemaker', options: [{ label: modelLabel(fallback), value: fallback }] }]
+      options.push({ label: 'Codemaker', options: [{ label: modelLabel(fallback), value: fallback }] })
+    } else {
+      options.push(...buildModelOptions(availableModels))
     }
-    return buildModelOptions(availableModels)
+    
+    return options
   }, [availableModels, currentModel])
 
   // ── 当前 Agent 信息（用于显示 @ 按钮状态）───────────────────

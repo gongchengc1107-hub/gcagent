@@ -112,6 +112,27 @@ function buildMessages(
 
 function getDirectConfig() {
   const state = useSettingsStore.getState()
+  
+  // 优先使用多模型配置
+  const activeModelId = state.activeMultiModelId
+  const multiModels = state.multiModels
+  
+  if (activeModelId && multiModels.length > 0) {
+    const activeModel = multiModels.find(m => m.id === activeModelId)
+    if (activeModel) {
+      let baseUrl = activeModel.apiUrl.trim().replace(/\/+$/, '')
+      if (!baseUrl) {
+        baseUrl = 'https://api.openai.com/v1'
+      }
+      return {
+        baseUrl,
+        apiKey: activeModel.apiKey.trim(),
+        model: activeModel.modelId.trim() || 'gpt-4o'
+      }
+    }
+  }
+  
+  // 降级到旧的单模型配置
   let baseUrl = state.apiBaseUrl.trim()
   const apiKey = state.apiKey.trim()
 

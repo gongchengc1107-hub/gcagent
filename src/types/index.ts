@@ -189,3 +189,43 @@ export interface ProviderSettingsState {
   connectionStatus: TestConnectionStatus
   connectionError?: string
 }
+
+/** 模型提供者预设类型 */
+export type ModelProviderType = 
+  | 'qwen'        // 通义千问
+  | 'doubao'      // 豆包
+  | 'deepseek'    // DeepSeek
+  | 'kling'       // 可灵
+  | 'kimi'        // Kimi
+  | 'minimax'     // MiniMax
+  | 'openai'      // OpenAI
+  | 'custom'      // 自定义
+
+/** 单个模型配置 */
+export interface ModelConfig {
+  /** 唯一标识，如 "qwen-max" */
+  id: string
+  /** 显示名称，如 "通义千问 Max" */
+  name: string
+  /** 提供者类型 */
+  providerType: ModelProviderType
+  /** API Base URL */
+  apiUrl: string
+  /** API Key */
+  apiKey: string
+  /** 模型 ID（API 调用时使用） */
+  modelId: string
+  /** 是否启用 */
+  enabled: boolean
+  /** 连接测试状态 */
+  connectionStatus?: TestConnectionStatus
+  /** 连接错误信息 */
+  connectionError?: string
+}
+
+/** 多模型配置列表 */
+export interface MultiModelConfig {
+  models: ModelConfig[]
+  /** 当前选中的模型 ID */
+  activeModelId?: string
+}

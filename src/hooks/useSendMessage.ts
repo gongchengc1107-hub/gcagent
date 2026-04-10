@@ -10,6 +10,7 @@ import { message as antMessage } from 'antd'
 import { useChatStore } from '@/stores/useChatStore'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useModelStore, DEFAULT_MODEL } from '@/stores/useModelStore'
+import { useSettingsStore } from '@/stores/useSettingsStore'
 import { getProvider } from '@/services/providerFactory'
 import type { QuestionAsked } from '@/services/chatProvider'
 import type { ChatMessage, ImageAttachment } from '@/types'
@@ -84,7 +85,25 @@ export function useSendMessage(): UseSendMessageReturn {
       const provider = getProvider()
       // 关键：从 store 实时读取最新 model，绕过 useCallback 闭包的 stale closure 问题。
       // 不将 currentModel 放入依赖数组，sendMessage 引用稳定，不会因模型切换触发下游组件重建。
-      const resolvedModel = useModelStore.getState().currentModel || DEFAULT_MODEL
+      let resolvedModel = useModelStore.getState().currentModel || DEFAULT_MODEL
+      
+      // 检查是否使用了多模型配置
+      if (resolvedModel.startsWith('direct://multi/')) {
+        const modelId = resolvedModel.replace('direct://multi/', '')
+        const settingsState = useSettingsStore.getState()
+        const multiModel = settingsState.multiModels.find(m => m.id === modelId)
+        
+        if (multiModel) {
+          // 激活对应的多模型配置
+          useSettingsStore.getState().setActiveMultiModelId(modelId)
+          // 使用多模型的 modelId
+          resolvedModel = multiModel.modelId
+          
+          if (import.meta.env.DEV) {
+            console.log(`[useSendMessage] 使用多模型配置: ${multiModel.name} (${multiModel.modelId})`)
+          }
+        }
+      }
 
       if (import.meta.env.DEV) {
         console.log(`[useSendMessage] provider=${provider.constructor.name} model=${resolvedModel}`)
