@@ -2,18 +2,16 @@ import { type FC, useState, useCallback } from 'react'
 import { Segmented, Input, Button, Tag, Badge, message, Modal, Card, Select, Tooltip } from 'antd'
 import {
   ReloadOutlined,
-  PlusOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
   LoadingOutlined,
   DeleteOutlined,
   EditOutlined,
-  SettingOutlined,
   PlayCircleOutlined
 } from '@ant-design/icons'
 import { useSettingsStore } from '@/stores'
 import { useServices } from '@/services/ServiceProvider'
-import type { ProviderSettingMode, ModelConfig, ModelProviderType, TestConnectionStatus } from '@/types'
+import type { ProviderSettingMode, ModelConfig, ModelProviderType } from '@/types'
 
 /** AI Provider 设置页 */
 const ProviderSettings: FC = () => {
@@ -52,18 +50,20 @@ const ProviderSettings: FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null)
   const [formData, setFormData] = useState<{
-    name: string
     providerType: ModelProviderType
     apiUrl: string
     apiKey: string
     modelId: string
   }>({
-    name: '',
     providerType: 'qwen',
     apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     apiKey: '',
     modelId: ''
   })
+  
+  /** 模型列表（从 API 获取） */
+  const [availableModels, setAvailableModels] = useState<string[]>([])
+  const [fetchingModels, setFetchingModels] = useState(false)
 
   /** 重启服务（Mock） */
   const handleRestartServe = useCallback(() => {
@@ -108,8 +108,8 @@ const ProviderSettings: FC = () => {
   /** 打开添加模型弹窗 */
   const handleOpenAddModel = useCallback(() => {
     setEditingModel(null)
+    setAvailableModels([])
     setFormData({
-      name: '',
       providerType: 'qwen',
       apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       apiKey: '',
@@ -121,8 +121,8 @@ const ProviderSettings: FC = () => {
   /** 打开编辑模型弹窗 */
   const handleOpenEditModel = useCallback((model: ModelConfig) => {
     setEditingModel(model)
+    setAvailableModels([])
     setFormData({
-      name: model.name,
       providerType: model.providerType,
       apiUrl: model.apiUrl,
       apiKey: model.apiKey,
@@ -130,6 +130,74 @@ const ProviderSettings: FC = () => {
     })
     setIsModalOpen(true)
   }, [])
+
+  /** 从 API 获取模型列表 */
+  const handleFetchModels = useCallback(async () => {
+    if (!formData.apiUrl.trim()) {
+      message.warning('请先输入 API Base URL')
+      return
+    }
+    if (!formData.apiKey.trim()) {
+      message.warning('请先输入 API Key')
+      return
+    }
+    
+    setFetchingModels(true)
+    try {
+      const normalizedUrl = formData.apiUrl.replace(/\/+$/, '')
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
+      
+      const res = await fetch(`${normalizedUrl}/models`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${formData.apiKey}`
+        },
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => '')
+        throw new Error(`HTTP ${res.status}: ${errorBody || res.statusText}`)
+      }
+      
+      const data = await res.json() as { data?: Array<{ id: string }> }
+      const models = data.data?.map(m => m.id).filter(Boolean) || []
+      
+      if (models.length === 0) {
+        message.info('未获取到模型列表')
+        return
+      }
+      
+      setAvailableModels(models)
+      message.success(`成功获取 ${models.length} 个模型`)
+      
+      // 如果有默认推荐模型，自动选中
+      const recommendedModels: Record<ModelProviderType, string> = {
+        qwen: 'qwen-turbo',
+        doubao: 'doubao-pro-32k',
+        deepseek: 'deepseek-chat',
+        kling: 'kling-v1',
+        kimi: 'moonshot-v1-8k',
+        minimax: 'MiniMax-M2.5',
+        openai: 'gpt-4o',
+        custom: ''
+      }
+      const recommended = recommendedModels[formData.providerType]
+      if (recommended && models.includes(recommended)) {
+        setFormData(prev => ({ ...prev, modelId: recommended }))
+      } else if (models.length > 0 && !formData.modelId) {
+        setFormData(prev => ({ ...prev, modelId: models[0] }))
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err)
+      message.error(`获取模型列表失败：${error}`)
+    } finally {
+      setFetchingModels(false)
+    }
+  }, [formData.apiUrl, formData.apiKey, formData.providerType, formData.modelId])
 
   /** 测试模型连接 */
   const handleTestModelConnection = useCallback(async (model: ModelConfig) => {
@@ -161,26 +229,31 @@ const ProviderSettings: FC = () => {
 
   /** 保存模型 */
   const handleSaveModel = useCallback(() => {
-    if (!formData.name.trim()) {
-      message.warning('请输入模型名称')
-      return
-    }
-    if (!formData.apiUrl.trim()) {
-      message.warning('请输入 API Base URL')
-      return
-    }
     if (!formData.apiKey.trim()) {
       message.warning('请输入 API Key')
       return
     }
     if (!formData.modelId.trim()) {
-      message.warning('请输入模型 ID')
+      message.warning('请选择或输入模型 ID')
       return
     }
 
+    const providerLabels: Record<ModelProviderType, string> = {
+      qwen: '通义千问',
+      doubao: '豆包',
+      deepseek: 'DeepSeek',
+      kling: '可灵',
+      kimi: 'Kimi',
+      minimax: 'MiniMax',
+      openai: 'OpenAI',
+      custom: '自定义'
+    }
+    // 自动生成模型名称
+    const autoName = `${providerLabels[formData.providerType]} - ${formData.modelId}`
+
     if (editingModel) {
       updateMultiModel(editingModel.id, {
-        name: formData.name.trim(),
+        name: autoName,
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
         apiKey: formData.apiKey.trim(),
@@ -190,7 +263,7 @@ const ProviderSettings: FC = () => {
     } else {
       const newModel: ModelConfig = {
         id: `model_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: formData.name.trim(),
+        name: autoName,
         providerType: formData.providerType,
         apiUrl: formData.apiUrl.trim(),
         apiKey: formData.apiKey.trim(),
@@ -564,18 +637,6 @@ const ProviderSettings: FC = () => {
         width={600}
       >
         <div className="space-y-4" style={{ marginTop: 24 }}>
-          {/* 模型名称 */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              模型名称
-            </label>
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="例如：通义千问 Max"
-            />
-          </div>
-
           {/* 提供者类型 */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -584,7 +645,6 @@ const ProviderSettings: FC = () => {
             <Select
               value={formData.providerType}
               onChange={(val) => {
-                // 根据提供者类型自动填充默认 API URL
                 const defaultUrls: Record<ModelProviderType, string> = {
                   qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
                   doubao: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -595,10 +655,12 @@ const ProviderSettings: FC = () => {
                   openai: 'https://api.openai.com/v1',
                   custom: ''
                 }
+                setAvailableModels([])
                 setFormData({
                   ...formData,
                   providerType: val,
-                  apiUrl: defaultUrls[val]
+                  apiUrl: defaultUrls[val],
+                  modelId: ''
                 })
               }}
               options={[
@@ -615,18 +677,6 @@ const ProviderSettings: FC = () => {
             />
           </div>
 
-          {/* API Base URL（可展开编辑） */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              API Base URL
-            </label>
-            <Input
-              value={formData.apiUrl}
-              onChange={(e) => setFormData({ ...formData, apiUrl: e.target.value })}
-              placeholder="自动填充，可手动修改"
-            />
-          </div>
-
           {/* API Key */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -639,16 +689,39 @@ const ProviderSettings: FC = () => {
             />
           </div>
 
-          {/* 模型 ID */}
+          {/* 获取模型列表 + 模型选择 */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              模型 ID
-            </label>
-            <Input
-              value={formData.modelId}
-              onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
-              placeholder="例如：qwen-max, deepseek-chat"
-            />
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                选择模型
+              </label>
+              <Button
+                size="small"
+                icon={fetchingModels ? <LoadingOutlined /> : undefined}
+                loading={fetchingModels}
+                onClick={handleFetchModels}
+                disabled={!formData.apiKey.trim()}
+              >
+                {fetchingModels ? '获取中...' : '获取模型列表'}
+              </Button>
+            </div>
+            {availableModels.length > 0 ? (
+              <Select
+                value={formData.modelId || undefined}
+                onChange={(val) => setFormData({ ...formData, modelId: val })}
+                placeholder="选择模型"
+                showSearch
+                optionFilterProp="label"
+                style={{ width: '100%' }}
+                options={availableModels.map(m => ({ label: m, value: m }))}
+              />
+            ) : (
+              <Input
+                value={formData.modelId}
+                onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
+                placeholder="先点击右侧按钮获取模型列表，或手动输入模型 ID"
+              />
+            )}
           </div>
         </div>
       </Modal>
