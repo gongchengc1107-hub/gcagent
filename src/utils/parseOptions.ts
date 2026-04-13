@@ -5,11 +5,19 @@
  * 2. JSON 格式：{"options":["选项 A","选项 B","选项 C"],"question":"请选择："}
  */
 
+export interface ParsedOption {
+  label: string
+  /** 是否为自定义输入选项 */
+  isCustom: boolean
+  /** 自定义输入的提示文字 */
+  customPlaceholder?: string
+}
+
 export interface ParsedOptions {
   /** 问题描述（可选） */
   question?: string
   /** 选项列表 */
-  options: string[]
+  options: ParsedOption[]
   /** 是否允许多选 */
   multiple: boolean
   /** 原始内容中匹配到的起始位置 */
@@ -32,29 +40,49 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
   let match = commentRegex.exec(content)
   if (match) {
     const raw = match[1].trim()
-    // 检查是否包含问题（用 | 或 ？分隔）
+    // 检查是否包含问题（用 | 分隔）
     let question: string | undefined
     let optionsPart = raw
 
     const pipeSep = raw.indexOf('|')
-    const questionMarkSep = raw.indexOf('？')
-
     if (pipeSep > 0) {
       question = raw.slice(0, pipeSep).trim()
       optionsPart = raw.slice(pipeSep + 1).trim()
-    } else if (questionMarkSep > 1) {
-      question = raw.slice(0, questionMarkSep + 1).trim()
-      optionsPart = raw.slice(questionMarkSep + 1).trim()
+    }
+
+    // 检查是否标记多选
+    const multiple = /\bmultiple\s*=\s*true\b/i.test(optionsPart)
+    if (multiple) {
+      optionsPart = optionsPart.replace(/\bmultiple\s*=\s*true\b\s*,?\s*/gi, '').trim()
     }
 
     // 解析选项（支持逗号、换行分隔）
-    const options = optionsPart
+    const rawOptions = optionsPart
       .split(/[,\n]+/)
       .map((o) => o.trim())
-      .filter((o) => o.length > 0 && !o.startsWith('multiple'))
+      .filter((o) => o.length > 0)
 
-    // 检查是否标记多选
-    const multiple = /\bmultiple\s*=\s*true\b/i.test(raw)
+    // 解析每个选项，识别自定义输入
+    const options: ParsedOption[] = rawOptions.map((opt) => {
+      // 支持格式：自定义=请输入xxx 或 其他（自定义）
+      const customMatch = opt.match(/^(.+?)[=：]\s*(.+)$/s)
+      if (customMatch && (customMatch[1].includes('自定义') || customMatch[1].includes('其他') || customMatch[1].includes('输入'))) {
+        return {
+          label: customMatch[1].trim(),
+          isCustom: true,
+          customPlaceholder: customMatch[2].trim()
+        }
+      }
+      // 简单关键词识别
+      if (opt === '其他' || opt === '自定义' || opt === '手动输入' || opt.includes('其他（') || opt.includes('自定义（')) {
+        return {
+          label: opt,
+          isCustom: true,
+          customPlaceholder: '请输入具体内容'
+        }
+      }
+      return { label: opt, isCustom: false }
+    })
 
     if (options.length >= 2) {
       return {
@@ -75,9 +103,19 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
       const jsonStr = match[1] || match[2]
       const parsed = JSON.parse(jsonStr)
       if (Array.isArray(parsed.options) && parsed.options.length >= 2) {
+        const options: ParsedOption[] = parsed.options.map((opt: string | { label: string; isCustom?: boolean; customPlaceholder?: string }) => {
+          if (typeof opt === 'string') {
+            return { label: opt, isCustom: false }
+          }
+          return {
+            label: opt.label || '',
+            isCustom: opt.isCustom === true,
+            customPlaceholder: opt.customPlaceholder
+          }
+        })
         return {
           question: parsed.question,
-          options: parsed.options,
+          options,
           multiple: parsed.multiple === true,
           matchIndex: match.index,
           matchEnd: match.index + match[0].length
@@ -89,14 +127,14 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
   }
 
   // 格式 3: 简单列表格式（兼容旧格式）
-  // 匹配 <!--selector: A, B, C-->
   const selectorRegex = /<!--\s*selector\s*:\s*(.*?)\s*-->/gs
   match = selectorRegex.exec(content)
   if (match) {
-    const options = match[1]
+    const options: ParsedOption[] = match[1]
       .split(',')
       .map((o) => o.trim())
       .filter((o) => o.length > 0)
+      .map((label) => ({ label, isCustom: false }))
 
     if (options.length >= 2) {
       return {

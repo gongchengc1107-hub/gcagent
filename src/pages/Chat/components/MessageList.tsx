@@ -166,26 +166,37 @@ const MessageList: FC = () => {
 
   /** 选项选择状态（用于 UI 反馈） */
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+  /** 自定义输入状态 */
+  const [customInputVisible, setCustomInputVisible] = useState(false)
+  const [customInputValue, setCustomInputValue] = useState('')
+  const customInputRef = useRef<HTMLInputElement>(null)
 
-  /** 选项点击：单选直接发送，多选 toggle */
+  /** 选项点击：单选直接发送，多选 toggle，自定义展开输入框 */
   const handleOptionClick = useCallback(
-    (option: string) => {
+    (option: (typeof parsedOptions)['options'][number]) => {
       if (!currentSessionId || isStreaming) return
+
+      if (option.isCustom) {
+        // 自定义选项：展开输入框
+        setCustomInputVisible(true)
+        setTimeout(() => customInputRef.current?.focus(), 100)
+        return
+      }
 
       if (parsedOptions?.multiple) {
         // 多选模式：toggle
         setSelectedOptions((prev) =>
-          prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
+          prev.includes(option.label) ? prev.filter((o) => o !== option.label) : [...prev, option.label]
         )
       } else {
         // 单选模式：直接发送
-        setSelectedOptions([option])
+        setSelectedOptions([option.label])
         setTimeout(() => {
           const userMessage: ChatMessage = {
             id: crypto.randomUUID(),
             sessionId: currentSessionId,
             role: 'user',
-            content: option,
+            content: option.label,
             createdAt: Date.now()
           }
           addMessage(currentSessionId, userMessage)
@@ -197,6 +208,41 @@ const MessageList: FC = () => {
       }
     },
     [currentSessionId, isStreaming, parsedOptions, addMessage, startRealReply]
+  )
+
+  /** 自定义输入确认发送 */
+  const handleCustomSubmit = useCallback(() => {
+    if (!currentSessionId || isStreaming || !customInputValue.trim()) return
+
+    const content = customInputValue.trim()
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      sessionId: currentSessionId,
+      role: 'user',
+      content,
+      createdAt: Date.now()
+    }
+    addMessage(currentSessionId, userMessage)
+
+    const updatedMessages = useChatStore.getState().messages[currentSessionId] || []
+    startRealReply(currentSessionId, updatedMessages)
+    setCustomInputVisible(false)
+    setCustomInputValue('')
+    setSelectedOptions([])
+  }, [currentSessionId, isStreaming, customInputValue, addMessage, startRealReply])
+
+  /** 自定义输入键盘事件 */
+  const handleCustomKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleCustomSubmit()
+      } else if (e.key === 'Escape') {
+        setCustomInputVisible(false)
+        setCustomInputValue('')
+      }
+    },
+    [handleCustomSubmit]
   )
 
   /** 多选模式下的确认发送 */
@@ -325,7 +371,7 @@ const MessageList: FC = () => {
       )}
 
       {/* 前端解析的 options 选择器（支持直连模式） */}
-      {parsedOptions && !isStreaming && (
+      {parsedOptions && !isStreaming && !customInputVisible && (
         <div className="mx-auto max-w-3xl pb-4">
           <div
             className="rounded-lg p-4"
@@ -356,45 +402,54 @@ const MessageList: FC = () => {
               }`}
             >
               {parsedOptions.options.map((option, idx) => {
-                const isSelected = selectedOptions.includes(option)
+                const isSelected = selectedOptions.includes(option.label)
                 return (
                   <button
                     key={idx}
                     className="flex items-center gap-2 rounded-lg px-4 py-3 text-left text-sm transition-all duration-150"
                     style={{
-                      backgroundColor: isSelected
-                        ? 'var(--accent-primary)'
-                        : 'var(--bg-tertiary)',
-                      color: isSelected ? '#fff' : 'var(--text-primary)',
+                      backgroundColor: option.isCustom
+                        ? 'var(--bg-primary)'
+                        : isSelected
+                          ? 'var(--accent-primary)'
+                          : 'var(--bg-tertiary)',
+                      color: isSelected && !option.isCustom ? '#fff' : 'var(--text-primary)',
                       border: `1px solid ${
-                        isSelected ? 'var(--accent-primary)' : 'var(--border-primary)'
-                      }`
+                        option.isCustom ? 'var(--border-secondary)' : isSelected ? 'var(--accent-primary)' : 'var(--border-primary)'
+                      }`,
+                      borderStyle: option.isCustom ? 'dashed' : 'solid'
                     }}
                     onClick={() => handleOptionClick(option)}
                     onMouseEnter={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !option.isCustom) {
                         e.currentTarget.style.borderColor = 'var(--accent-primary)'
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.borderColor = 'var(--border-primary)'
+                      if (!isSelected && !option.isCustom) {
+                        e.currentTarget.style.borderColor = option.isCustom ? 'var(--border-secondary)' : 'var(--border-primary)'
                       }
                     }}
                   >
-                    {/* 指示器：多选用 checkbox，单选用 radio */}
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border" style={{
-                      borderColor: isSelected ? '#fff' : 'var(--text-muted)',
-                      backgroundColor: isSelected ? '#fff' : 'transparent'
-                    }}>
-                      {isSelected && (
-                        <span className="h-2 w-2 rounded-full" style={{
-                          backgroundColor: 'var(--accent-primary)',
-                          borderRadius: parsedOptions.multiple ? '1px' : '50%'
-                        }} />
-                      )}
-                    </span>
-                    <span className="flex-1">{option}</span>
+                    {!option.isCustom && (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border" style={{
+                        borderColor: isSelected ? '#fff' : 'var(--text-muted)',
+                        backgroundColor: isSelected ? '#fff' : 'transparent'
+                      }}>
+                        {isSelected && (
+                          <span className="h-2 w-2 rounded-full" style={{
+                            backgroundColor: 'var(--accent-primary)',
+                            borderRadius: parsedOptions.multiple ? '1px' : '50%'
+                          }} />
+                        )}
+                      </span>
+                    )}
+                    {option.isCustom && (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center" style={{ color: 'var(--text-muted)' }}>
+                        ✎
+                      </span>
+                    )}
+                    <span className="flex-1">{option.label}</span>
                   </button>
                 )
               })}
@@ -410,6 +465,66 @@ const MessageList: FC = () => {
                 确认选择（已选 {selectedOptions.length} 项）
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 自定义输入框 */}
+      {customInputVisible && parsedOptions && !isStreaming && (
+        <div className="mx-auto max-w-3xl pb-4">
+          <div
+            className="rounded-lg p-4"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              border: `2px solid var(--accent-primary)`
+            }}
+          >
+            <p
+              className="mb-3 text-sm font-medium"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {parsedOptions.question || '请输入'}
+            </p>
+            <div className="flex gap-2">
+              <input
+                ref={customInputRef}
+                type="text"
+                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: `1px solid var(--border-primary)`,
+                  color: 'var(--text-primary)'
+                }}
+                placeholder={parsedOptions.options.find((o) => o.isCustom)?.customPlaceholder || '请输入具体内容'}
+                value={customInputValue}
+                onChange={(e) => setCustomInputValue(e.target.value)}
+                onKeyDown={handleCustomKeyDown}
+              />
+              <button
+                className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                style={{ backgroundColor: 'var(--accent-primary)' }}
+                onClick={handleCustomSubmit}
+                disabled={!customInputValue.trim()}
+              >
+                发送
+              </button>
+              <button
+                className="rounded-lg px-3 py-2 text-sm transition-colors"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-secondary)'
+                }}
+                onClick={() => {
+                  setCustomInputVisible(false)
+                  setCustomInputValue('')
+                }}
+              >
+                取消
+              </button>
+            </div>
+            <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              按 Enter 发送，Esc 取消
+            </p>
           </div>
         </div>
       )}
