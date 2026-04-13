@@ -27,7 +27,11 @@
       "Bash(lsof *)",
       "Bash(git stash *)",
       "Bash(git show *)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(defaults *)",
+      "Bash(osascript *)",
+      "Bash(git reset *)"
     ]
   },
   "$version": 3

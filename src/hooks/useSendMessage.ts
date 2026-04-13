@@ -74,12 +74,12 @@ export function useSendMessage(): UseSendMessageReturn {
       setIsStreaming(sessionId, true)
 
       // 2. 找到当前 agent，取 backendName 传给 serve（真实调用）
-      //    同时保留 systemPrompt 作为无 backendName 时的降级描述
+      //    同时 ALWAYS 发送 systemPrompt，确保直连模式也能遵循格式要求
       const currentAgent = agents.find((a) => a.id === agentId)
       const agentID = currentAgent?.backendName || undefined
-      const systemPrompt = !agentID && currentAgent?.description
-        ? `你是 ${currentAgent.name}，${currentAgent.description}。`
-        : undefined
+      // 始终发送 systemPrompt（包含 agent 的完整定义和输出格式要求）
+      const systemPrompt = currentAgent?.systemPrompt
+        || (currentAgent?.description ? `你是 ${currentAgent.name}，${currentAgent.description}。` : undefined)
 
       // 3. 每次发送时取最新 Provider（响应 providerMode 和 VITE_USE_MOCK 的实时变化）
       const provider = getProvider()
