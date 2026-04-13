@@ -249,11 +249,28 @@ export const useSettingsStore = create<SettingsState>()(
         if (error) {
           console.warn('[SettingsStore] 恢复失败:', error)
         } else if (state) {
-          // 如果 localStorage 中有 multiModels 数据但 store 中为空，说明被覆盖了
           if (import.meta.env.DEV) {
             console.log('[SettingsStore] 恢复完成, multiModels:', state.multiModels?.length || 0, '个')
           }
         }
+      },
+      // 关键修复：防止 HMR 期间把默认空状态写回 localStorage
+      // 只有当 state 中包含用户配置（multiModels 非空）时才持久化
+      // 这避免了开发服务器重启时丢失数据
+      merge: (persistedState, currentState) => {
+        const merged = { ...currentState, ...(persistedState as object) }
+        // 如果持久化数据中有 multiModels，保留它（即使当前 state 为空）
+        if (persistedState && typeof persistedState === 'object' && 'multiModels' in persistedState) {
+          const persisted = persistedState as Record<string, unknown>
+          if (Array.isArray(persisted.multiModels) && persisted.multiModels.length > 0) {
+            merged.multiModels = persisted.multiModels
+            merged.activeMultiModelId = persisted.activeMultiModelId
+            if (import.meta.env.DEV) {
+              console.log('[SettingsStore] merge: 保留 persisted multiModels')
+            }
+          }
+        }
+        return merged
       }
     }
   )
