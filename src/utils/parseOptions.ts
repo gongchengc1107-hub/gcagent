@@ -147,20 +147,55 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
   }
 
   // ─── 兜底方案：自动检测自然语言中的"问题+选项列表"模式 ─────────────────────
-  // 匹配格式：
+  // 匹配格式 1：编号问题 + 项目符号选项
   // 1. 问题描述？
   //    - 选项 A
   //    - 选项 B
   // 或
   // 1. 问题描述？
-  //    1. 选项 A
-  //    2. 选项 B
-  // 或
-  // **1. 问题描述？**
-  // - 选项 A
-  // - 选项 B
-  const qaRegex = /(?:^|\n)\s*(?:\d+[\.)]\s*\*?\*?|\*\*\d+[\.)]\s*\*\*?)(.+?[？?！!])\s*\n((?:\s*[-*•]|\s*\d+[\.)]).+?(?:\n|$))+/gs
+  //    • 比如：选项 A、选项 B、选项 C
+  const qaRegex = /(?:^|\n)\s*(?:\d+[\.)]\s*\*?\*?|\*\*\d+[\.)]\s*\*\*?)(.+?[？?！!])\s*\n\s*(?:[-*•]\s*(?:比如：|例如：|如：)?\s*(.+?)(?:\n|$))/gs
   match = qaRegex.exec(content)
+  if (match) {
+    const question = match[1].trim().replace(/\*+/g, '')
+    const optionsRaw = match[2]?.trim()
+    
+    let optionLines: string[] = []
+    if (optionsRaw) {
+      // 尝试用顿号、逗号分隔
+      if (optionsRaw.includes('、')) {
+        optionLines = optionsRaw.split('、').map(s => s.trim()).filter(Boolean)
+      } else if (optionsRaw.includes(',')) {
+        optionLines = optionsRaw.split(',').map(s => s.trim()).filter(Boolean)
+      } else if (optionsRaw.includes('，')) {
+        optionLines = optionsRaw.split('，').map(s => s.trim()).filter(Boolean)
+      } else {
+        optionLines = [optionsRaw]
+      }
+      // 清理"等"、"等等"后缀
+      optionLines = optionLines.map(opt => opt.replace(/[等]+[。.!！]*$/, '').trim()).filter(Boolean)
+    }
+
+    if (question && optionLines.length >= 2) {
+      const fullMatch = match[0]
+      const startIndex = content.indexOf(fullMatch)
+      return {
+        question,
+        options: optionLines.map((label) => ({ label, isCustom: false })),
+        multiple: false,
+        matchIndex: startIndex >= 0 ? startIndex : match.index,
+        matchEnd: startIndex >= 0 ? startIndex + fullMatch.length : match.index + match[0].length
+      }
+    }
+  }
+
+  // 匹配格式 2：多行项目符号选项
+  // 1. 问题？
+  //    - 选项 A
+  //    - 选项 B
+  //    - 选项 C
+  const qaRegex2 = /(?:^|\n)\s*(?:\d+[\.)]\s*\*?\*?|\*\*\d+[\.)]\s*\*\*?)(.+?[？?！!])\s*\n((?:\s*[-*•]\s*.+?\n?)+)/gs
+  match = qaRegex2.exec(content)
   if (match) {
     const question = match[1].trim().replace(/\*+/g, '')
     const optionsBlock = match[2]
@@ -168,12 +203,11 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
     const optionLines = optionsBlock
       .split('\n')
       .map((line) => line.trim())
-      .filter((line) => /^[-*•]|\d+[\.)]/.test(line))
-      .map((line) => line.replace(/^[-*•]|\d+[\.)]\s*/, '').trim())
-      .filter((line) => line.length > 0)
+      .filter((line) => /^[-*•]/.test(line))
+      .map((line) => line.replace(/^[-*•]\s*(?:比如：|例如：|如：)?\s*/, '').trim())
+      .filter((line) => line.length > 0 && line !== '等' && line !== '等等')
 
     if (question && optionLines.length >= 2) {
-      // 找到匹配区域的起始位置
       const fullMatch = match[0]
       const startIndex = content.indexOf(fullMatch)
       return {
