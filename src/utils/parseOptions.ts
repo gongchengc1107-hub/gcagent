@@ -107,7 +107,13 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
       if (opts && Array.isArray(opts.choices) && opts.choices.length >= 2) {
         return {
           question: opts.question || '',
-          options: opts.choices.map((label: string) => ({ label, isCustom: false })),
+          options: opts.choices.map((label: string) => {
+            // 识别"其他"、"自定义"等关键词为自定义输入
+            if (label === '其他' || label === '自定义' || label === '手动输入' || label.includes('其他（') || label.includes('自定义（')) {
+              return { label, isCustom: true, customPlaceholder: '请输入具体内容' }
+            }
+            return { label, isCustom: false }
+          }),
           multiple: opts.multiple === true,
           matchIndex: match.index,
           matchEnd: match.index + match[0].length
@@ -117,6 +123,10 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
       if (Array.isArray(parsed.options) && parsed.options.length >= 2) {
         const options: ParsedOption[] = parsed.options.map((opt: string | { label: string; isCustom?: boolean; customPlaceholder?: string }) => {
           if (typeof opt === 'string') {
+            // 识别"其他"、"自定义"等关键词为自定义输入
+            if (opt === '其他' || opt === '自定义' || opt === '手动输入' || opt.includes('其他（') || opt.includes('自定义（')) {
+              return { label: opt, isCustom: true, customPlaceholder: '请输入具体内容' }
+            }
             return { label: opt, isCustom: false }
           }
           return {

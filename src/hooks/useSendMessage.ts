@@ -87,13 +87,14 @@ export function useSendMessage(): UseSendMessageReturn {
 
 【强制输出格式规则】
 当你需要向用户提问或提供选项时，必须在回复的最末尾输出以下 JSON 格式（不要省略，不要用其他格式）：
-{"options":{"question":"你的问题","choices":["选项A","选项B","选项C"],"multiple":false}}
+{"options":{"question":"你的问题","choices":["选项A","选项B","其他"],"multiple":false}}
 
 要求：
 - 必须是合法的 JSON，用 {} 包裹
 - question 字段为问题描述
 - choices 字段为选项数组，至少 2 个选项
 - multiple 字段表示是否多选（默认 false）
+- 如果用户可能需要自定义输入，在 choices 中包含"其他"选项（前端会自动识别并展开输入框）
 - 此 JSON 必须出现在回复的最后，后面不能有其他内容
 - 如果不需要提问，不要输出此 JSON`
 
