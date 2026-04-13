@@ -95,13 +95,25 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
     }
   }
 
-  // 格式 2: JSON 格式（在内容末尾）
+  // 格式 2: JSON 格式（在内容末尾）— 100% 可靠方案
+  // {"options":{"question":"...","choices":["A","B"],"multiple":false}}
   const jsonRegex = /```?\s*json\s*([\s\S]*?)```?|(\{[\s\S]*?"options"[\s\S]*?\})\s*$/
   match = jsonRegex.exec(content)
   if (match) {
     try {
       const jsonStr = match[1] || match[2]
       const parsed = JSON.parse(jsonStr)
+      const opts = parsed.options
+      if (opts && Array.isArray(opts.choices) && opts.choices.length >= 2) {
+        return {
+          question: opts.question || '',
+          options: opts.choices.map((label: string) => ({ label, isCustom: false })),
+          multiple: opts.multiple === true,
+          matchIndex: match.index,
+          matchEnd: match.index + match[0].length
+        }
+      }
+      // 兼容旧格式：直接 {"options":["A","B"]}
       if (Array.isArray(parsed.options) && parsed.options.length >= 2) {
         const options: ParsedOption[] = parsed.options.map((opt: string | { label: string; isCustom?: boolean; customPlaceholder?: string }) => {
           if (typeof opt === 'string') {

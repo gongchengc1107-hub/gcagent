@@ -78,8 +78,26 @@ export function useSendMessage(): UseSendMessageReturn {
       const currentAgent = agents.find((a) => a.id === agentId)
       const agentID = currentAgent?.backendName || undefined
       // 始终发送 systemPrompt（包含 agent 的完整定义和输出格式要求）
-      const systemPrompt = currentAgent?.systemPrompt
+      let systemPrompt = currentAgent?.systemPrompt
         || (currentAgent?.description ? `你是 ${currentAgent.name}，${currentAgent.description}。` : undefined)
+
+      // ⚠️ 100% 可靠方案：强制在 systemPrompt 末尾追加 JSON 格式要求
+      // LLM 对 JSON 格式的遵循度远高于自然语言格式指令
+      const forcedJsonFormat = `
+
+【强制输出格式规则】
+当你需要向用户提问或提供选项时，必须在回复的最末尾输出以下 JSON 格式（不要省略，不要用其他格式）：
+{"options":{"question":"你的问题","choices":["选项A","选项B","选项C"],"multiple":false}}
+
+要求：
+- 必须是合法的 JSON，用 {} 包裹
+- question 字段为问题描述
+- choices 字段为选项数组，至少 2 个选项
+- multiple 字段表示是否多选（默认 false）
+- 此 JSON 必须出现在回复的最后，后面不能有其他内容
+- 如果不需要提问，不要输出此 JSON`
+
+      systemPrompt = (systemPrompt || '') + forcedJsonFormat
 
       // 3. 每次发送时取最新 Provider（响应 providerMode 和 VITE_USE_MOCK 的实时变化）
       const provider = getProvider()
