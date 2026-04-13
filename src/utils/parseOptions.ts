@@ -146,6 +146,46 @@ export function parseOptionsFromContent(content: string): ParsedOptions | null {
     }
   }
 
+  // ─── 兜底方案：自动检测自然语言中的"问题+选项列表"模式 ─────────────────────
+  // 匹配格式：
+  // 1. 问题描述？
+  //    - 选项 A
+  //    - 选项 B
+  // 或
+  // 1. 问题描述？
+  //    1. 选项 A
+  //    2. 选项 B
+  // 或
+  // **1. 问题描述？**
+  // - 选项 A
+  // - 选项 B
+  const qaRegex = /(?:^|\n)\s*(?:\d+[\.)]\s*\*?\*?|\*\*\d+[\.)]\s*\*\*?)(.+?[？?！!])\s*\n((?:\s*[-*•]|\s*\d+[\.)]).+?(?:\n|$))+/gs
+  match = qaRegex.exec(content)
+  if (match) {
+    const question = match[1].trim().replace(/\*+/g, '')
+    const optionsBlock = match[2]
+    // 提取选项行
+    const optionLines = optionsBlock
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => /^[-*•]|\d+[\.)]/.test(line))
+      .map((line) => line.replace(/^[-*•]|\d+[\.)]\s*/, '').trim())
+      .filter((line) => line.length > 0)
+
+    if (question && optionLines.length >= 2) {
+      // 找到匹配区域的起始位置
+      const fullMatch = match[0]
+      const startIndex = content.indexOf(fullMatch)
+      return {
+        question,
+        options: optionLines.map((label) => ({ label, isCustom: false })),
+        multiple: false,
+        matchIndex: startIndex >= 0 ? startIndex : match.index,
+        matchEnd: startIndex >= 0 ? startIndex + fullMatch.length : match.index + match[0].length
+      }
+    }
+  }
+
   return null
 }
 
