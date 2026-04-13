@@ -19,7 +19,15 @@
       "Bash(kill *)",
       "Bash(xargs *)",
       "Bash(find *)",
-      "Bash(grep *)"
+      "Bash(grep *)",
+      "Bash(true)",
+      "Bash(asar *)",
+      "Bash(git push)",
+      "Bash(codemaker *)",
+      "Bash(lsof *)",
+      "Bash(git stash *)",
+      "Bash(git show *)",
+      "Bash(git log *)"
     ]
   },
   "$version": 3
