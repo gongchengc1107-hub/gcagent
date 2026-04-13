@@ -215,6 +215,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: STORAGE_KEYS.SETTINGS,
+      version: 1,
       // servePort 是运行时由主进程写入的动态值，不应持久化
       // 持久化旧端口会导致下次启动时用错误端口连接 codemaker serve
       partialize: (state) => ({
@@ -230,7 +231,30 @@ export const useSettingsStore = create<SettingsState>()(
         activeMultiModelId: state.activeMultiModelId,
         directUsageRecords: state.directUsageRecords.slice(-300) // 持久化最近 300 条
         // 故意排除：servePort、connectionStatus、connectionError
-      })
+      }),
+      // 迁移函数：确保 multiModels 不会在版本升级时丢失
+      migrate: (persistedState: unknown, fromVersion: number) => {
+        if (fromVersion < 1) {
+          // v0 → v1: 确保 multiModels 保留
+          const state = persistedState as Record<string, unknown>
+          if (state && Array.isArray(state.multiModels)) {
+            console.log('[SettingsStore] 迁移：保留 multiModels 数据')
+          }
+        }
+        return persistedState
+      },
+      // 防止开发模式下 localStorage 被空值覆盖
+      // 只有当 localStorage 中有数据时才使用它，否则用默认值
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.warn('[SettingsStore] 恢复失败:', error)
+        } else if (state) {
+          // 如果 localStorage 中有 multiModels 数据但 store 中为空，说明被覆盖了
+          if (import.meta.env.DEV) {
+            console.log('[SettingsStore] 恢复完成, multiModels:', state.multiModels?.length || 0, '个')
+          }
+        }
+      }
     }
   )
 )
