@@ -1,10 +1,11 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import type { FC } from 'react'
 import { RobotOutlined, BulbOutlined, CodeOutlined, RocketOutlined } from '@ant-design/icons'
 import { useChatStore, useAgentStore } from '@/stores'
 import type { ChatMessage } from '@/types'
 import { useSendMessage } from '@/hooks/useSendMessage'
 import { parseQuickActions } from '@/utils/quickActions'
+import { parseOptionsFromContent, stripOptionsMarkers } from '@/utils/parseOptions'
 import MessageBubble from './MessageBubble'
 import QuickActionButtons from './QuickActionButtons'
 
@@ -155,6 +156,42 @@ const MessageList: FC = () => {
     return parseQuickActions(lastMsg.content)
   }, [currentMessages])
 
+  /** 解析最后一条 AI 消息中的 options 选择器标记 */
+  const parsedOptions = useMemo(() => {
+    if (currentMessages.length === 0) return null
+    const lastMsg = currentMessages[currentMessages.length - 1]
+    if (lastMsg.role !== 'assistant' || lastMsg.isStreaming) return null
+    return parseOptionsFromContent(lastMsg.content)
+  }, [currentMessages])
+
+  /** 选项选择状态（用于 UI 反馈） */
+  const [selectedOption, setSelectedOption] = useState<string | null>(null)
+
+  /** 选项点击：自动发送该选项内容 */
+  const handleOptionSelect = useCallback(
+    (option: string) => {
+      if (!currentSessionId || isStreaming) return
+      setSelectedOption(option)
+
+      // 短暂延迟后发送，让用户看到选中反馈
+      setTimeout(() => {
+        const userMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          sessionId: currentSessionId,
+          role: 'user',
+          content: option,
+          createdAt: Date.now()
+        }
+        addMessage(currentSessionId, userMessage)
+
+        const updatedMessages = useChatStore.getState().messages[currentSessionId] || []
+        startRealReply(currentSessionId, updatedMessages)
+        setSelectedOption(null)
+      }, 300)
+    },
+    [currentSessionId, isStreaming, addMessage, startRealReply]
+  )
+
   /** 快捷选项点击：等同用户发送该文本 */
   const handleQuickAction = useCallback(
     (text: string) => {
@@ -236,10 +273,17 @@ const MessageList: FC = () => {
             msg.role === 'assistant' &&
             !msg.isStreaming &&
             idx === currentMessages.length - 1
+
+          // 对最后一条消息，移除 options 标记后再渲染
+          const displayContent =
+            isLastAssistant && parsedOptions
+              ? stripOptionsMarkers(msg.content)
+              : msg.content
+
           return (
             <MessageBubble
               key={msg.id}
-              message={msg}
+              message={{ ...msg, content: displayContent }}
               onResend={handleResend}
               onEditResend={handleEditResend}
               onRegenerate={handleRegenerate}
@@ -248,9 +292,72 @@ const MessageList: FC = () => {
           )
         })}
       </div>
-      {/* AI 快捷选项按钮 */}
+
+      {/* AI 快捷选项按钮（从列表项解析） */}
       {quickActions.length > 0 && (
         <QuickActionButtons actions={quickActions} onAction={handleQuickAction} />
+      )}
+
+      {/* 前端解析的 options 选择器（支持直连模式） */}
+      {parsedOptions && !isStreaming && (
+        <div className="mx-auto max-w-3xl pb-4">
+          <div
+            className="rounded-lg p-4"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              border: `1px solid var(--border-primary)`
+            }}
+          >
+            {parsedOptions.question && (
+              <p
+                className="mb-3 text-sm font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {parsedOptions.question}
+              </p>
+            )}
+            <div
+              className={`grid gap-2 ${
+                parsedOptions.options.length <= 4 ? 'grid-cols-2' : 'grid-cols-1'
+              }`}
+            >
+              {parsedOptions.options.map((option, idx) => {
+                const isSelected = selectedOption === option
+                return (
+                  <button
+                    key={idx}
+                    className="rounded-lg px-4 py-3 text-left text-sm transition-all duration-150"
+                    style={{
+                      backgroundColor: isSelected
+                        ? 'var(--accent-primary)'
+                        : 'var(--bg-tertiary)',
+                      color: isSelected ? '#fff' : 'var(--text-primary)',
+                      border: `1px solid ${
+                        isSelected ? 'var(--accent-primary)' : 'var(--border-primary)'
+                      }`,
+                      opacity: isStreaming ? 0.5 : 1,
+                      cursor: isStreaming ? 'not-allowed' : 'pointer'
+                    }}
+                    disabled={isStreaming}
+                    onClick={() => handleOptionSelect(option)}
+                    onMouseEnter={(e) => {
+                      if (!isStreaming && !isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--accent-primary)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--border-primary)'
+                      }
+                    }}
+                  >
+                    {option}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
