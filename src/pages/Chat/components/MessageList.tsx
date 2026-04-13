@@ -165,32 +165,58 @@ const MessageList: FC = () => {
   }, [currentMessages])
 
   /** 选项选择状态（用于 UI 反馈） */
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
 
-  /** 选项点击：自动发送该选项内容 */
-  const handleOptionSelect = useCallback(
+  /** 选项点击：单选直接发送，多选 toggle */
+  const handleOptionClick = useCallback(
     (option: string) => {
       if (!currentSessionId || isStreaming) return
-      setSelectedOption(option)
 
-      // 短暂延迟后发送，让用户看到选中反馈
-      setTimeout(() => {
-        const userMessage: ChatMessage = {
-          id: crypto.randomUUID(),
-          sessionId: currentSessionId,
-          role: 'user',
-          content: option,
-          createdAt: Date.now()
-        }
-        addMessage(currentSessionId, userMessage)
+      if (parsedOptions?.multiple) {
+        // 多选模式：toggle
+        setSelectedOptions((prev) =>
+          prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
+        )
+      } else {
+        // 单选模式：直接发送
+        setSelectedOptions([option])
+        setTimeout(() => {
+          const userMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sessionId: currentSessionId,
+            role: 'user',
+            content: option,
+            createdAt: Date.now()
+          }
+          addMessage(currentSessionId, userMessage)
 
-        const updatedMessages = useChatStore.getState().messages[currentSessionId] || []
-        startRealReply(currentSessionId, updatedMessages)
-        setSelectedOption(null)
-      }, 300)
+          const updatedMessages = useChatStore.getState().messages[currentSessionId] || []
+          startRealReply(currentSessionId, updatedMessages)
+          setSelectedOptions([])
+        }, 300)
+      }
     },
-    [currentSessionId, isStreaming, addMessage, startRealReply]
+    [currentSessionId, isStreaming, parsedOptions, addMessage, startRealReply]
   )
+
+  /** 多选模式下的确认发送 */
+  const handleConfirmMultiSelect = useCallback(() => {
+    if (!currentSessionId || isStreaming || selectedOptions.length === 0) return
+
+    const content = selectedOptions.join('、')
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      sessionId: currentSessionId,
+      role: 'user',
+      content,
+      createdAt: Date.now()
+    }
+    addMessage(currentSessionId, userMessage)
+
+    const updatedMessages = useChatStore.getState().messages[currentSessionId] || []
+    startRealReply(currentSessionId, updatedMessages)
+    setSelectedOptions([])
+  }, [currentSessionId, isStreaming, selectedOptions, addMessage, startRealReply])
 
   /** 快捷选项点击：等同用户发送该文本 */
   const handleQuickAction = useCallback(
@@ -314,6 +340,14 @@ const MessageList: FC = () => {
                 style={{ color: 'var(--text-primary)' }}
               >
                 {parsedOptions.question}
+                {parsedOptions.multiple && (
+                  <span
+                    className="ml-2 text-xs font-normal"
+                    style={{ color: 'var(--accent-primary)' }}
+                  >
+                    （可多选）
+                  </span>
+                )}
               </p>
             )}
             <div
@@ -322,11 +356,11 @@ const MessageList: FC = () => {
               }`}
             >
               {parsedOptions.options.map((option, idx) => {
-                const isSelected = selectedOption === option
+                const isSelected = selectedOptions.includes(option)
                 return (
                   <button
                     key={idx}
-                    className="rounded-lg px-4 py-3 text-left text-sm transition-all duration-150"
+                    className="flex items-center gap-2 rounded-lg px-4 py-3 text-left text-sm transition-all duration-150"
                     style={{
                       backgroundColor: isSelected
                         ? 'var(--accent-primary)'
@@ -334,14 +368,11 @@ const MessageList: FC = () => {
                       color: isSelected ? '#fff' : 'var(--text-primary)',
                       border: `1px solid ${
                         isSelected ? 'var(--accent-primary)' : 'var(--border-primary)'
-                      }`,
-                      opacity: isStreaming ? 0.5 : 1,
-                      cursor: isStreaming ? 'not-allowed' : 'pointer'
+                      }`
                     }}
-                    disabled={isStreaming}
-                    onClick={() => handleOptionSelect(option)}
+                    onClick={() => handleOptionClick(option)}
                     onMouseEnter={(e) => {
-                      if (!isStreaming && !isSelected) {
+                      if (!isSelected) {
                         e.currentTarget.style.borderColor = 'var(--accent-primary)'
                       }
                     }}
@@ -351,11 +382,34 @@ const MessageList: FC = () => {
                       }
                     }}
                   >
-                    {option}
+                    {/* 指示器：多选用 checkbox，单选用 radio */}
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border" style={{
+                      borderColor: isSelected ? '#fff' : 'var(--text-muted)',
+                      backgroundColor: isSelected ? '#fff' : 'transparent'
+                    }}>
+                      {isSelected && (
+                        <span className="h-2 w-2 rounded-full" style={{
+                          backgroundColor: 'var(--accent-primary)',
+                          borderRadius: parsedOptions.multiple ? '1px' : '50%'
+                        }} />
+                      )}
+                    </span>
+                    <span className="flex-1">{option}</span>
                   </button>
                 )
               })}
             </div>
+
+            {/* 多选确认按钮 */}
+            {parsedOptions.multiple && selectedOptions.length > 0 && (
+              <button
+                className="mt-3 w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                style={{ backgroundColor: 'var(--accent-primary)' }}
+                onClick={handleConfirmMultiSelect}
+              >
+                确认选择（已选 {selectedOptions.length} 项）
+              </button>
+            )}
           </div>
         </div>
       )}
