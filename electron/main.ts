@@ -158,9 +158,33 @@ function getCodemakBin(): string {
   return 'codemaker'
 }
 
+/** 检查指定端口是否已被 codemaker serve 占用 */
+async function isPortOccupiedByServe(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ port, host: '127.0.0.1' }, () => {
+      socket.end()
+      resolve(true)
+    })
+    socket.on('error', () => resolve(false))
+    socket.setTimeout(1000, () => {
+      socket.destroy()
+      resolve(false)
+    })
+  })
+}
+
 /** 启动 codemaker serve 子进程 */
 async function startServeProcess(): Promise<void> {
-  servePort = await findFreePort(4000)
+  // 优先尝试使用默认端口 4000，如果已被 serve 占用则直接复用
+  const targetPort = 4000
+  const occupied = await isPortOccupiedByServe(targetPort)
+  if (occupied) {
+    if (isDev) console.log(`[codemaker serve] port ${targetPort} already in use, reusing`)
+    servePort = targetPort
+    return
+  }
+
+  servePort = await findFreePort(targetPort)
   const bin = getCodemakBin()
 
   serveProcess = spawn(bin, ['serve', '--port', String(servePort), '--hostname', '127.0.0.1'], {
